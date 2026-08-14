@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CampusResolve - Smart Digital Complaint &amp; Feedback Management System</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap">
+
+    <!--
+      CRITICAL: Prevent flash of wrong theme.
+      Reads persisted Zustand state from localStorage BEFORE React mounts.
+      Zustand persist key is 'sdcfrs-theme', value is {"state":{"isDarkMode":true},...}
+    -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('sdcfrs-theme')
+          var isDark = false
+          if (raw) {
+            var parsed = JSON.parse(raw)
+            isDark = !!(parsed && parsed.state && parsed.state.isDarkMode)
+          }
+          var html = document.documentElement
+          var body = document.body
+          if (isDark) {
+            html.classList.add('dark')
+            html.setAttribute('data-theme', 'dark')
+            if (body) { body.classList.add('dark-theme'); body.classList.remove('light-theme') }
+          } else {
+            html.classList.remove('dark')
+            html.setAttribute('data-theme', 'light')
+            if (body) { body.classList.add('light-theme'); body.classList.remove('dark-theme') }
+          }
+        } catch (e) { /* silent — defaults to light */ }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

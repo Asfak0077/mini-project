@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+    <div style="max-width:680px;margin:0 auto;padding:24px;">
+      <div style="border-radius:20px;overflow:hidden;background:#ffffff;box-shadow:0 18px 60px rgba(15,23,42,0.12);">
+        <div style="padding:34px 32px;background:linear-gradient(135deg, {{ accentColor }}, #065f46);color:#fff;">
+          <p style="margin:0 0 10px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;opacity:.8;">CampusResolve</p>
+          <h1 style="margin:0;font-size:30px;line-height:1.2;">{{ headerTitle }}</h1>
+        </div>
+        <div style="padding:32px;">
+          <p style="margin:0 0 12px;font-size:18px;font-weight:700;">Hello {{ greetingName }},</p>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#334155;">{{ introCopy }}</p>
+
+          <div style="margin:0 0 22px;padding:16px 18px;border:1px solid #d1fae5;border-radius:16px;background:#f0fdf4;">
+            <p style="margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#047857;">{{ audienceLabel }}</p>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;color:#0f172a;">
+              {{ detailsRows }}
+            </table>
+          </div>
+
+          <div style="margin:0 0 22px;padding:18px;border-left:4px solid #10b981;background:#ecfdf5;border-radius:12px;">
+            <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#047857;">{{ summaryTitle }}</p>
+            <p style="margin:0;font-size:14px;line-height:1.8;color:#064e3b;white-space:pre-wrap;">{{ summaryText }}</p>
+          </div>
+
+          <div style="margin:0 0 24px;text-align:center;">
+            <a href="{{ ctaUrl }}" style="display:inline-block;padding:14px 26px;border-radius:999px;background:{{ accentColor }};color:#fff;text-decoration:none;font-weight:700;">{{ ctaLabel }}</a>
+          </div>
+
+          <p style="margin:0;font-size:13px;line-height:1.7;color:#64748b;">{{ footerNote }}</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

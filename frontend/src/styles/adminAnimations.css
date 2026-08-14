@@ -1,0 +1,276 @@
+/* ============ ADMIN DASHBOARD ANIMATIONS ============ */
+
+/* KPI Card Animations */
+@keyframes countUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* cardFloat removed — was infinite, decorative only */
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* KPI Card Styles */
+.kpi-card {
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 200ms ease, border-color 200ms ease, transform 200ms ease;
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.kpi-card:hover::before {
+    opacity: 1;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-strong);
+}
+
+.kpi-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+}
+
+.kpi-card:hover .kpi-card-icon {
+    transform: rotate(10deg) scale(1.1);
+}
+
+.kpi-card-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    animation: countUp 0.25s ease-out;
+}
+
+.kpi-card-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Table Row */
+.table-row {
+    transition: background 150ms ease;
+}
+
+.table-row:hover {
+    background: var(--surface-hover);
+}
+
+.table-header {
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+/* Filter Dropdown Styles */
+.filter-dropdown {
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    border: 1.5px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.filter-dropdown:hover {
+    border-color: var(--primary);
+}
+
+.filter-dropdown:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+/* Chart Container */
+.chart-container {
+    transition: box-shadow 200ms ease, border-color 200ms ease;
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+
+.chart-container:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+}
+
+.chart-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+/* Teacher Card */
+.teacher-card {
+    transition: box-shadow 200ms ease, border-color 200ms ease;
+    border: 1px solid var(--border);
+    background: var(--card);
+    position: relative;
+    overflow: hidden;
+}
+
+.teacher-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--primary);
+    transform: scaleY(0);
+    transition: transform 150ms ease;
+}
+
+.teacher-card:hover::before {
+    transform: scaleY(1);
+}
+
+.teacher-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+}
+
+/* Input Focus */
+.input-glow {
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    border: 1.5px solid var(--border-strong);
+}
+
+.input-glow:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+/* Page Title */
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    letter-spacing: -0.025em;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+/* Stagger Animation — short delays only */
+.stagger-item { animation: slideInUp 0.2s ease-out both; }
+.stagger-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-item:nth-child(2) { animation-delay: 30ms; }
+.stagger-item:nth-child(3) { animation-delay: 50ms; }
+.stagger-item:nth-child(4) { animation-delay: 70ms; }
+.stagger-item:nth-child(5) { animation-delay: 90ms; }
+.stagger-item:nth-child(6) { animation-delay: 100ms; }
+
+/* Loading Skeleton */
+.chart-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--surface-secondary) 25%,
+        var(--surface-hover) 50%,
+        var(--surface-secondary) 75%
+    );
+    background-size: 1200px 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Status Badge Enhanced */
+.status-badge-enhanced {
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.status-badge-enhanced:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .kpi-card:hover {
+        transform: translateY(-4px) scale(1.01);
+    }
+
+    .page-title {
+        font-size: 2rem;
+    }
+
+    .kpi-card-value {
+        font-size: 2rem;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+
+    .kpi-card,
+    .table-row,
+    .filter-dropdown,
+    .chart-container,
+    .teacher-card,
+    .input-glow {
+        transition: none;
+        animation: none;
+    }
+
+    .kpi-card:hover,
+    .table-row:hover,
+    .chart-container:hover,
+    .teacher-card:hover {
+        transform: none;
+    }
+}

@@ -1,0 +1,551 @@
+/* ============================================
+   DEPARTMENT-THEMED TEACHER DASHBOARDS
+   ============================================
+   Each department gets unique colors and animations
+   while maintaining the same functionality.
+   ============================================ */
+
+/* ============================================
+   DEPARTMENT COLOR VARIABLES
+   ============================================ */
+
+.dashboard-cse {
+    --dept-primary: #3B82F6;
+    --dept-primary-dark: #1E40AF;
+    --dept-primary-light: #DBEAFE;
+    --dept-accent: #60A5FA;
+    --dept-gradient-start: #3B82F6;
+    --dept-gradient-end: #1E3A8A;
+}
+
+.dashboard-ece {
+    --dept-primary: #A855F7;
+    --dept-primary-dark: #7C3AED;
+    --dept-primary-light: #F3E8FF;
+    --dept-accent: #C084FC;
+    --dept-gradient-start: #A855F7;
+    --dept-gradient-end: #6B21A8;
+}
+
+.dashboard-mech {
+    --dept-primary: #F97316;
+    --dept-primary-dark: #EA580C;
+    --dept-primary-light: #FFEDD5;
+    --dept-accent: #FB923C;
+    --dept-gradient-start: #F97316;
+    --dept-gradient-end: #C2410C;
+}
+
+.dashboard-eee {
+    --dept-primary: #EAB308;
+    --dept-primary-dark: #CA8A04;
+    --dept-primary-light: #FEF9C3;
+    --dept-accent: #FACC15;
+    --dept-gradient-start: #EAB308;
+    --dept-gradient-end: #A16207;
+}
+
+.dashboard-aids {
+    --dept-primary: #10B981;
+    --dept-primary-dark: #059669;
+    --dept-primary-light: #D1FAE5;
+    --dept-accent: #34D399;
+    --dept-gradient-start: #10B981;
+    --dept-gradient-end: #047857;
+}
+
+.dashboard-it {
+    --dept-primary: #14B8A6;
+    --dept-primary-dark: #0D9488;
+    --dept-primary-light: #CCFBF1;
+    --dept-accent: #2DD4BF;
+    --dept-gradient-start: #14B8A6;
+    --dept-gradient-end: #0F766E;
+}
+
+/* ============================================
+   BACKGROUND ANIMATIONS - CSE (Moving Gradient)
+   ============================================ */
+
+.dashboard-cse {
+    background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 50%, #93C5FD 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-cse::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(135deg,
+            rgba(59, 130, 246, 0.1) 0%,
+            rgba(96, 165, 250, 0.15) 25%,
+            rgba(147, 197, 253, 0.1) 50%,
+            rgba(59, 130, 246, 0.15) 75%,
+            rgba(96, 165, 250, 0.1) 100%);
+    animation: none !important;
+    z-index: 0;
+    pointer-events: none;
+}
+
+@keyframes cse-gradient-move {
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    25% {
+        transform: translate(10%, 10%) rotate(90deg);
+    }
+
+    50% {
+        transform: translate(0, 20%) rotate(180deg);
+    }
+
+    75% {
+        transform: translate(-10%, 10%) rotate(270deg);
+    }
+}
+
+/* ============================================
+   BACKGROUND ANIMATIONS - ECE (Floating Particles)
+   ============================================ */
+
+.dashboard-ece {
+    background: linear-gradient(135deg, #F3E8FF 0%, #E9D5FF 50%, #D8B4FE 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-ece::before,
+.dashboard-ece::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.15), transparent);
+    animation: none !important;
+    z-index: 0;
+    pointer-events: none;
+    filter: blur(40px);
+}
+
+.dashboard-ece::before {
+    width: 400px;
+    height: 400px;
+    top: -100px;
+    left: -100px;
+    animation-delay: 0s;
+}
+
+.dashboard-ece::after {
+    width: 300px;
+    height: 300px;
+    bottom: -50px;
+    right: -50px;
+    animation-delay: 7s;
+}
+
+@keyframes ece-float {
+
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.3;
+    }
+
+    33% {
+        transform: translate(50px, -50px) scale(1.1);
+        opacity: 0.5;
+    }
+
+    66% {
+        transform: translate(-30px, 30px) scale(0.9);
+        opacity: 0.4;
+    }
+}
+
+/* ============================================
+   BACKGROUND ANIMATIONS - MECH (Sliding Shapes)
+   ============================================ */
+
+.dashboard-mech {
+    background: linear-gradient(135deg, #FFEDD5 0%, #FED7AA 50%, #FDBA74 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-mech::before,
+.dashboard-mech::after {
+    content: '';
+    position: fixed;
+    background: linear-gradient(45deg, rgba(249, 115, 22, 0.1), rgba(234, 88, 12, 0.15));
+    z-index: 0;
+    pointer-events: none;
+}
+
+.dashboard-mech::before {
+    width: 300px;
+    height: 300px;
+    top: 10%;
+    right: -50px;
+    transform: rotate(45deg);
+    animation: none !important;
+}
+
+.dashboard-mech::after {
+    width: 250px;
+    height: 250px;
+    bottom: 10%;
+    left: -50px;
+    transform: rotate(-30deg);
+    animation: none !important;
+}
+
+@keyframes mech-slide-right {
+
+    0%,
+    100% {
+        transform: translateX(0) rotate(45deg);
+    }
+
+    50% {
+        transform: translateX(-100px) rotate(135deg);
+    }
+}
+
+@keyframes mech-slide-left {
+
+    0%,
+    100% {
+        transform: translateX(0) rotate(-30deg);
+    }
+
+    50% {
+        transform: translateX(100px) rotate(30deg);
+    }
+}
+
+/* ============================================
+   BACKGROUND ANIMATIONS - EEE (Pulse Glow)
+   ============================================ */
+
+.dashboard-eee {
+    background: linear-gradient(135deg, #FEF9C3 0%, #FEF08A 50%, #FDE047 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-eee::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 600px;
+    height: 600px;
+    margin-left: -300px;
+    margin-top: -300px;
+    background: radial-gradient(circle, rgba(234, 179, 8, 0.2), transparent 70%);
+    animation: none !important;
+    z-index: 0;
+    pointer-events: none;
+    filter: blur(60px);
+}
+
+@keyframes eee-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: scale(1.3);
+        opacity: 0.6;
+    }
+}
+
+/* ============================================
+   BACKGROUND ANIMATIONS - AIDS (Smooth Fade)
+   ============================================ */
+
+.dashboard-aids {
+    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 50%, #6EE7B7 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-aids::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg,
+            rgba(16, 185, 129, 0.05) 0%,
+            rgba(5, 150, 105, 0.1) 50%,
+            rgba(16, 185, 129, 0.05) 100%);
+    animation: none !important;
+    z-index: 0;
+    pointer-events: none;
+}
+
+@keyframes aids-fade {
+
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(1.05);
+    }
+}
+
+/* ============================================
+   BACKGROUND ANIMATIONS - IT (Glassmorphism)
+   ============================================ */
+
+.dashboard-it {
+    background: linear-gradient(135deg, #CCFBF1 0%, #99F6E4 50%, #5EEAD4 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-it::before,
+.dashboard-it::after {
+    content: '';
+    position: fixed;
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    z-index: 0;
+    pointer-events: none;
+    animation: none !important;
+}
+
+.dashboard-it::before {
+    width: 400px;
+    height: 300px;
+    top: 15%;
+    right: 10%;
+    animation-delay: 0s;
+}
+
+.dashboard-it::after {
+    width: 350px;
+    height: 250px;
+    bottom: 20%;
+    left: 5%;
+    animation-delay: 5s;
+}
+
+@keyframes it-glass-float {
+
+    0%,
+    100% {
+        transform: translate(0, 0);
+        opacity: 0.4;
+    }
+
+    50% {
+        transform: translate(20px, -20px);
+        opacity: 0.6;
+    }
+}
+
+/* ============================================
+   CONTENT WRAPPER - Ensure content is above backgrounds
+   ============================================ */
+
+.dashboard-cse>*,
+.dashboard-ece>*,
+.dashboard-mech>*,
+.dashboard-eee>*,
+.dashboard-aids>*,
+.dashboard-it>* {
+    position: relative;
+    z-index: 1;
+}
+
+/* ============================================
+   PAGE LOAD ANIMATION
+   ============================================ */
+
+.dept-page-content {
+    animation: dept-page-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes dept-page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   CARD ANIMATIONS - Fade In with Stagger
+   ============================================ */
+
+.dept-card {
+    animation: dept-card-fade-in 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+.dept-card:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.dept-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.dept-card:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.dept-card:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+.dept-card:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.dept-card:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+@keyframes dept-card-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   CARD HOVER EFFECTS - Lift with Shadow
+   ============================================ */
+
+.dept-card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dept-card-hover:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================
+   DEPARTMENT HEADER STYLING
+   ============================================ */
+
+.dept-header {
+    background: linear-gradient(135deg,
+            var(--dept-gradient-start),
+            var(--dept-gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: dept-header-shimmer 3s ease-in-out infinite;
+}
+
+@keyframes dept-header-shimmer {
+
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+
+    50% {
+        filter: brightness(1.2);
+    }
+}
+
+/* ============================================
+   DEPARTMENT BADGE STYLING
+   ============================================ */
+
+.dept-badge {
+    background: linear-gradient(135deg,
+            var(--dept-primary),
+            var(--dept-primary-dark));
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.dept-badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   ACCESSIBILITY - Reduced Motion
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .dashboard-cse::before,
+    .dashboard-ece::before,
+    .dashboard-ece::after,
+    .dashboard-mech::before,
+    .dashboard-mech::after,
+    .dashboard-eee::before,
+    .dashboard-aids::before,
+    .dashboard-it::before,
+    .dashboard-it::after {
+        animation: none;
+    }
+
+    .dept-page-content,
+    .dept-card,
+    .dept-header {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+
+    .dept-card-hover:hover {
+        transform: none;
+    }
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+
+    .dashboard-cse::before,
+    .dashboard-ece::before,
+    .dashboard-ece::after,
+    .dashboard-mech::before,
+    .dashboard-mech::after,
+    .dashboard-eee::before,
+    .dashboard-aids::before,
+    .dashboard-it::before,
+    .dashboard-it::after {
+        opacity: 0.5;
+    }
+}

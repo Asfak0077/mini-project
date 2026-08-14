@@ -1,0 +1,268 @@
+/* ============ GLOBAL ANIMATIONS — micro-interactions only ============ */
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Used only for data-loading skeletons — not for decorative UI */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+/* ── Utility animation classes (short durations only) ─────────────── */
+
+.animate-fade-in       { animation: fadeIn      0.2s ease-out both; }
+.animate-slide-in-up   { animation: slideInUp   0.2s ease-out both; }
+.animate-slide-in-down { animation: slideInDown 0.2s ease-out both; }
+.animate-slide-in-left { animation: slideInLeft 0.2s ease-out both; }
+.animate-slide-in-right{ animation: slideInRight 0.2s ease-out both; }
+.animate-scale-in      { animation: scaleIn     0.2s ease-out both; }
+
+/* Functional spinner — used for loading states, not decoration */
+.animate-spin { animation: spin 0.7s linear infinite; }
+
+/* ── Skeleton shimmer ─────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-secondary) 25%,
+    var(--surface-hover) 50%,
+    var(--surface-secondary) 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Legacy card ──────────────────────────────────────────────────── */
+.legacy-anim-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+  border: 1px solid var(--border);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(37,99,235,0.25);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: 0 4px 8px rgba(37,99,235,0.3);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--primary);
+  border: 1.5px solid var(--border-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--primary-subtle);
+  border-color: var(--primary-border);
+}
+
+.btn-success { background: var(--success); color: #fff; }
+.btn-danger  { background: var(--danger);  color: #fff; }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-lg { padding: 14px 28px; font-size: 16px; }
+
+/* ── Input & Form ─────────────────────────────────────────────────── */
+.input-group { margin-bottom: 18px; }
+
+.input-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.input-group input,
+.input-group textarea,
+.input-group select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text-primary);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.input-group input:focus,
+.input-group textarea:focus,
+.input-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+.input-group textarea { resize: vertical; min-height: 100px; }
+
+.input-error { border-color: var(--danger) !important; }
+.error-message { color: var(--danger); font-size: 12px; margin-top: 4px; }
+
+/* ── Status Badges ────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-submitted { background: var(--primary-subtle);  color: var(--primary); }
+.badge-assigned  { background: rgba(236,72,153,0.12);  color: #db2777; }
+.badge-in-progress { background: var(--warning-subtle); color: var(--warning); }
+.badge-resolved  { background: var(--success-subtle);  color: var(--success); }
+.badge-escalated { background: var(--danger-subtle);   color: var(--danger); }
+.badge-low       { background: var(--success-subtle);  color: var(--success); }
+.badge-medium    { background: var(--warning-subtle);  color: var(--warning); }
+.badge-high      { background: var(--danger-subtle);   color: var(--danger); }
+
+/* ── Spinner ──────────────────────────────────────────────────────── */
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.spinner-sm { width: 20px; height: 20px; border-width: 2px; }
+.spinner-lg { width: 52px; height: 52px; border-width: 4px; }
+
+/* ── Progress Bar ────────────────────────────────────────────────── */
+.progress-bar {
+  width: 100%; height: 6px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 400ms ease-out;
+}
+
+/* ── Modal ────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.modal {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 500px;
+  width: 90%;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl);
+  animation: scaleIn 0.15s ease-out;
+}
+
+/* ── Notifications ────────────────────────────────────────────────── */
+.notification {
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideInDown 0.18s ease-out;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.notification-success { background: var(--success-subtle); color: var(--success); border: 1px solid rgba(22,163,74,0.2); }
+.notification-error   { background: var(--danger-subtle);  color: var(--danger);  border: 1px solid rgba(220,38,38,0.2); }
+.notification-warning { background: var(--warning-subtle); color: var(--warning); border: 1px solid rgba(217,119,6,0.2); }
+.notification-info    { background: var(--info-subtle);    color: var(--info);    border: 1px solid rgba(2,132,199,0.2); }
+
+/* ── Accessibility ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-slide-in-up, .animate-slide-in-down,
+  .animate-slide-in-left, .animate-slide-in-right, .animate-scale-in,
+  .modal-overlay, .modal, .notification { animation: none !important; }
+
+  .animate-spin, .spinner, .spinner-sm, .spinner-lg { animation-duration: 1.5s !important; }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .card { padding: 16px; }
+  .btn  { padding: 8px 16px; font-size: 13px; }
+  .modal { padding: 20px; }
+}
+
+@media (max-width: 480px) {
+  .card  { padding: 12px; }
+  .modal { padding: 16px; }
+  .btn   { padding: 8px 14px; font-size: 12px; }
+}

@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+a {
+  color: #1d4ed8;
+}
+
+button,
+input,
+select,
+textarea {
+  color: #0f172a;
+}
+
+.reduced-motion * {
+  animation: none !important;
+  transition: none !important;
+}

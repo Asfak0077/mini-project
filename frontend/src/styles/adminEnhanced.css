@@ -1,0 +1,324 @@
+/* Admin Dashboard Enhanced Animations */
+
+/* Page fade-in */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.admin-dashboard-content {
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Complaint Card Hover Effect */
+.complaint-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.complaint-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.complaint-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    padding: 2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.complaint-card:hover::before {
+    opacity: 1;
+}
+
+/* Staggered List Animation */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.complaint-list-item { animation: slideInUp 0.2s ease-out both; }
+.complaint-list-item:nth-child(1) { animation-delay: 0ms; }
+.complaint-list-item:nth-child(2) { animation-delay: 30ms; }
+.complaint-list-item:nth-child(3) { animation-delay: 50ms; }
+.complaint-list-item:nth-child(4) { animation-delay: 70ms; }
+.complaint-list-item:nth-child(5) { animation-delay: 90ms; }
+
+/* Button Hover with Ripple */
+.assign-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.assign-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.assign-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.assign-button:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* Status Badge Pulse */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.status-badge-pending {
+    animation: none !important;
+}
+
+/* Dropdown Smooth Open */
+.teacher-dropdown {
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.teacher-dropdown:focus {
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+    border-color: var(--primary);
+    outline: none;
+}
+
+/* Loading Spinner for Buttons */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.button-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+/* Success Checkmark Animation */
+@keyframes checkmark {
+    0% {
+        stroke-dashoffset: 50;
+    }
+
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+.success-checkmark {
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+    animation: checkmark 0.6s ease-out forwards;
+}
+
+/* Card hover */
+.lift-on-hover {
+    transition: box-shadow 200ms ease;
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+
+.lift-on-hover:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Stat Card Galaxy Theme */
+.stat-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Filter Dropdown Animations */
+.filter-dropdown {
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.filter-dropdown:focus {
+    border-color: #2563EB;
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    outline: none;
+}
+
+.filter-dropdown option {
+    background: #0f172a;
+    color: white;
+}
+
+/* Text Visibility Improvements */
+.admin-heading {
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.admin-subheading {
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.admin-body-text {
+    color: #94a3b8;
+    line-height: 1.6;
+}
+
+/* Tab Animation */
+.admin-tab {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.admin-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(to right, #667eea, #764ba2);
+    transform: translateX(-50%);
+    transition: width 0.3s ease;
+}
+
+.admin-tab.active::after,
+.admin-tab:hover::after {
+    width: 100%;
+}
+
+/* Notification Toast Slide In */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.toast-notification {
+    animation: slideInRight 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .complaint-card:hover {
+        transform: none;
+    }
+
+    .lift-on-hover:hover {
+        transform: none;
+    }
+}
+
+/* New Table Styles */
+.table-header {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glow for Assigned */
+.glow-success {
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.glow-primary {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Bell Shake Animation */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: rotate(-10deg);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: rotate(10deg);
+    }
+}
+
+.animate-shake {
+    animation: shake 0.8s ease-in-out;
+}

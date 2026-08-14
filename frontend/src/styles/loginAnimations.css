@@ -1,0 +1,105 @@
+/* ============ LOGIN PAGE — Micro-interactions only (≤ 250ms) ============ */
+
+/* Short fade for success/error alerts (used by successSlideUp class) */
+@keyframes successSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.success-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--success-subtle);
+  border: 1px solid rgba(22,163,74,0.25);
+  border-radius: 12px;
+  color: var(--success);
+  font-weight: 600;
+  font-size: 14px;
+  animation: successSlideUp 0.2s ease-out;
+  margin-bottom: 16px;
+}
+
+.success-message-icon {
+  width: 22px;
+  height: 22px;
+  background: var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  /* NO infinite animation */
+}
+
+.success-message-icon svg {
+  width: 12px;
+  height: 12px;
+  stroke: white;
+  stroke-width: 3;
+  fill: none;
+}
+
+/* Input groups used by older login variants */
+.floating-label-input {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.floating-label-input input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 12px;
+  font-size: 14.5px;
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.floating-label-input input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+/* Loading overlay (redirect) */
+.loading-redirect-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(37,99,235,0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+@keyframes _spinner {
+  to { transform: rotate(360deg); }
+}
+
+.loading-redirect-overlay .spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: _spinner 0.7s linear infinite;
+}
+
+.loading-redirect-overlay .message {
+  margin-top: 20px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .loading-redirect-overlay .spinner,
+  .success-message {
+    animation: none !important;
+  }
+}

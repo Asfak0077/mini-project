@@ -1,0 +1,311 @@
+.about-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding-bottom: 40px;
+}
+
+.about-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.about-hero {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.about-hero h1 {
+  font-size: 2.5rem;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.about-hero p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.about-content {
+  margin-bottom: 50px;
+  line-height: 1.8;
+}
+
+.about-content h2 {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  margin: 30px 0 16px 0;
+  font-weight: 700;
+}
+
+.about-content h2:first-child {
+  margin-top: 0;
+}
+
+.about-content p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.objectives-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.objectives-list li {
+  padding: 12px 0;
+  padding-left: 30px;
+  position: relative;
+  color: var(--text-secondary);
+}
+
+.objectives-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--success-color);
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* Features Section */
+.features-section {
+  margin-bottom: 50px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.feature-card {
+  background: white;
+  padding: 30px 24px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.feature-card h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.feature-card p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* Statistics Section */
+.statistics-section {
+  margin-bottom: 50px;
+}
+
+.statistics-section h2 {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.stat {
+  text-align: center;
+  padding: 24px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-radius: 12px;
+  color: white;
+  transition: all var(--transition-normal);
+}
+
+.stat:hover {
+  transform: scale(1.05);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Team Section */
+.team-section {
+  margin-bottom: 50px;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.team-card {
+  text-align: center;
+  padding: 30px 24px;
+}
+
+.team-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: white;
+  font-size: 2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.team-card h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.team-card .role {
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.team-card .department {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Guidelines Section */
+.guidelines-section {
+  margin-bottom: 50px;
+}
+
+.guidelines-section h2 {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+.guidelines-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.guideline-item {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  background: var(--bg-light);
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.guideline-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.guideline-item h4 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.guideline-item p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Contact CTA */
+.contact-cta {
+  text-align: center;
+  padding: 40px;
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.contact-cta h2 {
+  color: white;
+  margin-bottom: 12px;
+}
+
+.contact-cta p {
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 24px;
+}
+
+.contact-cta .btn {
+  background: white;
+  color: var(--primary-color);
+}
+
+.contact-cta .btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .about-hero h1 {
+    font-size: 1.8rem;
+  }
+
+  .about-content h2 {
+    font-size: 1.2rem;
+  }
+
+  .features-grid,
+  .stats-grid,
+  .team-grid,
+  .guidelines-list {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-cta {
+    padding: 24px;
+  }
+}
