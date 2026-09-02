@@ -15,7 +15,7 @@
     "axios": "^1.6.8",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
-    "framer-motion": "^11.0.3",
+    "framer-motion": "^11.18.2",
     "lucide-react": "^0.574.0",
     "react": "^18.2.0",
     "react-countup": "^6.5.3",

@@ -258,7 +258,7 @@ const AdminDashboard = () => {
                     flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer
                     ${
                       isActive
-                        ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] shadow-xs'
+                        ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-xs'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
                     }
                   `}
@@ -269,7 +269,7 @@ const AdminDashboard = () => {
                     <span
                       className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                         isActive
-                          ? 'bg-white/20 dark:bg-black/15 text-white dark:text-[#111827]'
+                          ? 'bg-white/20 text-white'
                           : 'bg-[var(--surface-secondary)] text-[var(--text-muted)]'
                       }`}
                     >
@@ -277,6 +277,7 @@ const AdminDashboard = () => {
                     </span>
                   )}
                 </button>
+
               )
             })}
           </div>

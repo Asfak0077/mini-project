@@ -179,7 +179,7 @@ const AppSidebar: React.FC = () => {
                     transition-all duration-150 cursor-pointer group
                     ${
                       isActive
-                        ? 'text-white dark:text-[#0F172A]'
+                        ? 'text-white'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
                     }
                     ${!isExpanded ? 'lg:justify-center lg:px-0 lg:w-11 lg:h-11 lg:mx-auto' : ''}
@@ -190,10 +190,11 @@ const AppSidebar: React.FC = () => {
                   {isActive && (
                     <motion.div
                       layoutId="macActivePill"
-                      className="absolute inset-0 bg-[#111827] dark:bg-white rounded-[16px] shadow-sm z-0"
+                      className="absolute inset-0 bg-[#111827] dark:bg-blue-600 rounded-[16px] shadow-sm z-0"
                       transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                     />
                   )}
+
 
                   <item.icon
                     className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-200 ${

@@ -1,18 +1,20 @@
-import React, { FormEvent, useState } from 'react'
+import React, { FormEvent, useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { submitComplaint } from '../../services/complaintService'
+import { submitComplaint, predictResolution } from '../../services/complaintService'
 import { fetchTeachers } from '../../services/teacherService'
 import { useAuthStore } from '../../store/authStore'
-import { ComplaintPriority } from '../../types/domain'
+import { ComplaintPriority, AIResolutionPrediction } from '../../types/domain'
 import {
   Building2, GraduationCap, Bus, Home, MoreHorizontal,
-  AlertCircle, CheckCircle2, ArrowRight, Send, ShieldAlert, Check
+  AlertCircle, CheckCircle2, ArrowRight, Send, ShieldAlert, Check,
+  MapPin
 } from 'lucide-react'
 import FileUpload from '../shared/FileUpload'
 import { Button } from '../ui/Button'
 import ComplaintIdBadge from '../shared/ComplaintIdBadge'
+import AIResolutionPredictionCard from '../shared/AIResolutionPredictionCard'
 
 interface ComplaintFormState {
   title: string
@@ -21,6 +23,7 @@ interface ComplaintFormState {
   studentId: string
   phone: string
   category: string
+  location: string
   department: string
   assignedTeacherId: string
   priority: ComplaintPriority
@@ -52,12 +55,19 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
     studentId: user?.studentId ?? '',
     phone: user?.phone ?? '',
     category: 'Infrastructure',
+    location: '',
     department: user?.department && user.department !== 'Administration' && user.department !== 'Faculty' ? user.department : 'General',
     assignedTeacherId: '',
     priority: 'medium',
     description: '',
     attachments: []
   })
+
+  // AI Resolution Prediction State
+  const [prediction, setPrediction] = useState<AIResolutionPrediction | null>(null)
+  const [isPredicting, setIsPredicting] = useState(false)
+  const [predictionError, setPredictionError] = useState<string | null>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Auto-populate form when user profile is loaded/updated
   React.useEffect(() => {
@@ -72,6 +82,48 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
       }))
     }
   }, [user])
+
+  // Debounced AI Resolution Prediction on content changes
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    const hasContent = form.title.trim().length > 2 || form.description.trim().length > 4
+
+    if (!hasContent) {
+      setIsPredicting(false)
+      return
+    }
+
+    setIsPredicting(true)
+    setPredictionError(null)
+
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const result = await predictResolution({
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          location: form.location,
+          department: form.department,
+          priority: form.priority,
+          timeOfSubmission: new Date().toISOString()
+        })
+        setPrediction(result)
+      } catch (err: any) {
+        setPredictionError(err?.message || 'Prediction failed')
+      } finally {
+        setIsPredicting(false)
+      }
+    }, 400)
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [form.title, form.description, form.category, form.location, form.department, form.priority])
 
   const [validationError, setValidationError] = useState<string | null>(null)
 
@@ -88,7 +140,8 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
   const mutation = useMutation({
     mutationFn: submitComplaint,
     onSuccess: (data) => {
-      setForm((prev) => ({ ...prev, title: '', description: '', attachments: [] }))
+      setForm((prev) => ({ ...prev, title: '', location: '', description: '', attachments: [] }))
+      setPrediction(null)
       void queryClient.invalidateQueries({ queryKey: ['complaints'] })
       void queryClient.invalidateQueries({ queryKey: ['all-complaints-admin'] })
       void queryClient.invalidateQueries({ queryKey: ['teacher-complaints-profile'] })
@@ -103,7 +156,7 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
     setValidationError(null)
 
     if (!form.title.trim()) {
-      setValidationError('Please provide a title for your grievance.')
+      setValidationError('Please provide a title for your complaint.')
       return
     }
 
@@ -119,12 +172,16 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
       return
     }
 
+    const finalDescription = form.location.trim()
+      ? `[Location: ${form.location.trim()}]\n\n${form.description}`
+      : form.description
+
     mutation.mutate({
       title: form.title,
       category: form.category,
       department: form.department,
       assignedTeacherId: form.assignedTeacherId || undefined,
-      description: form.description,
+      description: finalDescription,
       priority: form.priority,
       studentName,
       studentEmail,
@@ -137,24 +194,24 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
   return (
     <div className="bg-[var(--card)] rounded-[18px] border border-[var(--border)] p-6 sm:p-8 shadow-[var(--shadow-md)] relative overflow-hidden transition-colors duration-200 w-full">
       <form onSubmit={onSubmit} noValidate className="space-y-6">
-        {/* Grievance Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border)]">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--active-text)] bg-[var(--active-bg)] rounded-full flex items-center gap-1.5 border border-[var(--border-subtle)]">
-                <ShieldAlert className="w-3 h-3" /> Grievance Portal
+                <ShieldAlert className="w-3 h-3" /> Student Support Portal
               </span>
             </div>
             <h2 className="text-[22px] sm:text-[24px] font-[800] text-[var(--text-primary)] tracking-tight leading-tight">
-              Submit Grievance
+              Report a Complaint
             </h2>
             <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-              Describe your concern clearly and select the appropriate category for rapid resolution.
+              Describe your issue clearly and select the category. Our AI engine will forecast resolution time in real time.
             </p>
           </div>
           <div className="shrink-0 self-start sm:self-auto">
             <span className="px-3 py-1.5 text-[11.5px] font-bold rounded-[12px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Average SLA: 24h
+              <CheckCircle2 className="w-3.5 h-3.5" /> Target SLA: &lt; 24h
             </span>
           </div>
         </div>
@@ -197,16 +254,34 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
 
         {/* Title Input */}
         <div className="space-y-2">
-          <label htmlFor="grievance-title" className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-            Grievance Title <span className="text-rose-500">*</span>
+          <label htmlFor="complaint-title" className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            Complaint Title <span className="text-rose-500">*</span>
           </label>
           <input
-            id="grievance-title"
+            id="complaint-title"
             type="text"
             required
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="e.g. Projector malfunctioning in Room 304"
+            className="w-full h-[48px] px-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface-secondary)] text-[14px] font-semibold text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:bg-[var(--card)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/10 transition-all"
+          />
+        </div>
+
+        {/* Location / Room / Area Input */}
+        <div className="space-y-2">
+          <label htmlFor="complaint-location" className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)] flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-blue-500" /> Location / Room / Area (Optional)
+            </span>
+            <span className="text-[10px] font-medium text-[var(--text-muted)]">Helps AI predict exact technician routing</span>
+          </label>
+          <input
+            id="complaint-location"
+            type="text"
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
+            placeholder="e.g. Tech Block B, Room 304 / Hostel Block C / Physics Lab"
             className="w-full h-[48px] px-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface-secondary)] text-[14px] font-semibold text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:bg-[var(--card)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/10 transition-all"
           />
         </div>
@@ -329,7 +404,7 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 1000) })}
             placeholder="Provide relevant context, exact location, timing, and any pertinent details..."
-            className="w-full h-[140px] p-4 rounded-[16px] border border-[var(--border)] bg-[var(--surface-secondary)] text-[14px] font-semibold text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:bg-[var(--card)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/10 resize-none transition-all"
+            className="w-full h-[130px] p-4 rounded-[16px] border border-[var(--border)] bg-[var(--surface-secondary)] text-[14px] font-semibold text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:bg-[var(--card)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/10 resize-none transition-all"
           />
         </div>
 
@@ -347,6 +422,32 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
           />
         </div>
 
+        {/* ── AI Resolution Prediction Live Preview Card ── */}
+        <AnimatePresence>
+          {(prediction || isPredicting || form.title.trim().length > 2 || form.description.trim().length > 4) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="pt-1"
+            >
+              <AIResolutionPredictionCard
+                prediction={prediction}
+                isLoading={isPredicting}
+                error={predictionError}
+                onApplyPriority={(p) => setForm((prev) => ({ ...prev, priority: p }))}
+                onApplyDepartment={(dept) => {
+                  const matched = DEPARTMENTS.find((d) => dept.toUpperCase().includes(d)) || dept
+                  if (DEPARTMENTS.includes(matched)) {
+                    setForm((prev) => ({ ...prev, department: matched, assignedTeacherId: '' }))
+                  }
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Validation Error Notice */}
         {(validationError || mutation.isError) && (
           <div className="p-4 rounded-[14px] bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex items-center gap-2">
@@ -358,7 +459,7 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
         {/* Submit Action Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[var(--border)]">
           <p className="text-[12.5px] font-medium text-[var(--text-muted)] text-center sm:text-left">
-            Your grievance will be directly routed to responsible campus faculty.
+            Your complaint will be directly routed to responsible campus faculty.
           </p>
           <Button
             type="submit"
@@ -367,7 +468,7 @@ const ComplaintForm = ({ onSuccess }: ComplaintFormProps) => {
             icon={!mutation.isPending && <Send className="w-4 h-4" />}
             className="w-full sm:w-auto px-8 h-[50px] text-[14px] font-bold rounded-[14px] bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white shadow-sm cursor-pointer"
           >
-            Submit Grievance
+            Submit Complaint
           </Button>
         </div>
       </form>

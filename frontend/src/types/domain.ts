@@ -57,3 +57,19 @@ export interface AnalyticsSummary {
   escalated: number
   averageResolutionHours: number
 }
+
+export interface AIResolutionPrediction {
+  expectedResolutionTime: string
+  slaSuccessProbability: number
+  escalationRisk: 'Low' | 'Medium' | 'High'
+  suggestedPriority: 'Low' | 'Medium' | 'High' | 'Critical'
+  recommendedDepartment: string
+  confidenceScore: number
+  confidenceLevel: 'Low' | 'Medium' | 'High'
+  aiExplanation: string
+  recommendedAction: string
+  dataSource: 'historical' | 'general_patterns'
+  historicalCount?: number
+  avgHistoricalHours?: number | null
+}
+

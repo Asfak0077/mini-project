@@ -99,9 +99,10 @@ const LoginPage: React.FC = () => {
   }
 
   const benefits = [
-    { label: 'Live SLA Tracking', desc: 'Real-time ticket progression' },
-    { label: 'Encrypted Redressal', desc: 'Secure student-faculty channel' },
-    { label: 'AI Assistance', desc: 'Instant category & smart drafting' }
+    { label: 'Submit Complaints Easily', desc: 'Report your problem quickly' },
+    { label: 'Track Your Complaint', desc: 'Check updates and progress' },
+    { label: 'Get Help from AI', desc: 'Create complaints with AI assistance' },
+    { label: 'Safe & Secure', desc: 'Your information is protected' }
   ]
 
   return (
@@ -111,15 +112,16 @@ const LoginPage: React.FC = () => {
       {/* ── Top Bar Header ────────────────────────────────────── */}
       <header className="relative z-20 max-w-6xl w-full mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md bg-[#111827] dark:bg-white dark:text-[#111827] transition-transform group-hover:scale-105">
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md ring-1 ring-white/20 bg-gradient-to-br from-blue-600 to-indigo-600 transition-transform group-hover:scale-105">
             CR
           </div>
+
           <div className="flex flex-col">
             <span className="text-base font-[800] text-[var(--text-primary)] tracking-tight leading-tight">
               CampusResolve
             </span>
             <span className="text-[10px] font-bold text-[var(--text-muted)] tracking-wider uppercase">
-              Enterprise Redressal
+              Student Support Portal
             </span>
           </div>
         </Link>
@@ -139,18 +141,23 @@ const LoginPage: React.FC = () => {
       <main className="relative z-10 w-full max-w-5xl mx-auto my-auto py-8 sm:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           
-          {/* Left Hero & Value Statement (Hidden on small mobile if needed, but elegant on lg) */}
+          {/* Left Hero & Value Statement */}
           <div className="lg:col-span-6 space-y-6 text-left hidden sm:block">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[var(--active-bg)] text-[var(--active-text)] border border-[var(--border-subtle)]">
-              <Sparkles className="w-3.5 h-3.5" /> Institutional Access Portal
+              <Sparkles className="w-3.5 h-3.5" /> Student Support Portal
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-[800] text-[var(--text-primary)] tracking-tight leading-[1.15]">
-              Seamless Campus Grievance Resolution.
-            </h1>
+            <div className="space-y-1.5">
+              <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-[800] text-[var(--text-primary)] tracking-tight leading-[1.1]">
+                CampusResolve
+              </h1>
+              <p className="text-xl sm:text-2xl font-[800] bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 bg-clip-text text-transparent tracking-tight">
+                Report a Problem. Get It Resolved.
+              </p>
+            </div>
 
             <p className="text-[14.5px] text-[var(--text-secondary)] font-medium leading-relaxed max-w-md">
-              Access your personalized workspace to lodge, monitor, and resolve academic, hostel, and infrastructure tickets in real time.
+              CampusResolve helps students report academic, hostel, and campus issues in one place. Track your complaint and get updates until the issue is resolved.
             </p>
 
             {/* Feature Pills */}
@@ -167,14 +174,10 @@ const LoginPage: React.FC = () => {
                 </div>
               ))}
             </div>
-
-            <div className="pt-2 flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Protected by SHA-256 verified campus security protocols</span>
-            </div>
           </div>
 
           {/* Right Floating Authentication Card */}
+
           <div className="lg:col-span-6 w-full max-w-[460px] mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -350,16 +353,6 @@ const LoginPage: React.FC = () => {
                 <GoogleIcon />
                 <span>Continue with Google</span>
               </button>
-
-              {/* Card Footer Help */}
-              <div className="text-center pt-1">
-                <p className="text-[12px] text-[var(--text-secondary)] font-medium">
-                  Need help accessing your portal?{' '}
-                  <Link to="/about" className="text-[var(--accent)] font-bold hover:underline">
-                    View Guidelines
-                  </Link>
-                </p>
-              </div>
             </motion.div>
           </div>
         </div>
@@ -367,5 +360,6 @@ const LoginPage: React.FC = () => {
     </div>
   )
 }
+
 
 export default LoginPage

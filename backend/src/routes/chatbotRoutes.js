@@ -1,352 +1,644 @@
 const express = require('express')
 const crypto = require('crypto')
+const jwt = require('jsonwebtoken')
+const mongoose = require('mongoose')
 const Complaint = require('../models/Complaint')
+const Student = require('../models/Student')
+const Teacher = require('../models/Teacher')
 const ChatLog = require('../models/ChatLog')
+const Feedback = require('../models/Feedback')
 const { protect, authorize } = require('../middleware/authMiddleware')
+const { getNextComplaintId } = require('../utils/complaintIdService')
+const { createNotification } = require('../utils/notificationHelper')
+const { emitToRole, emitToUser } = require('../utils/socketService')
+const { logActivity } = require('../utils/loggerService')
+const { inMemoryStore } = require('../utils/inMemoryStore')
+const {
+  sendComplaintSubmittedEmails,
+  sendFeedbackNotification,
+  sendFeedbackAdminNotification
+} = require('../services/emailService')
+
+const {
+  analyzeSentiment,
+  generateQuickReplies,
+  autoSuggestCategory,
+  predictPriority,
+  generateSummary,
+  enhanceFeedbackText,
+  generateBio,
+  generateFeedbackAnalyticsInsight,
+  answerChatbotQuestion,
+  extractComplaintDraft,
+  evaluateComplaintQuality,
+  answerWithLiveContext,
+  analyzeFeedback,
+  generateAggregatedFeedbackInsight
+} = require('../utils/aiSimulator')
+
+const { orchestrateChat } = require('../utils/aiOrchestrator')
+const { joinExistingComplaint, findDuplicateComplaints } = require('../utils/duplicateDetectionEngine')
 
 const router = express.Router()
 
-const {
-  analyzeSentiment, generateQuickReplies, autoSuggestCategory,
-  predictPriority, generateSummary, enhanceFeedbackText,
-  generateFeedbackAnalyticsInsight, generateBio, answerChatbotQuestion
-} = require('../utils/aiSimulator')
-
-let Feedback
-try { Feedback = require('../models/Feedback') } catch(e) { Feedback = null }
-
-// ─── Intent Patterns ────────────────────────────────────────────────────────
+// ─── Intent Regular Expressions ───────────────────────────────────────────────
 const INTENTS = {
-  GREETING:        /^(hi|hello|hey|greetings|morning|afternoon|evening)/i,
-  THANKS:          /(thank|thanks|appreciate)/i,
-  LOGIN:           /(how.*login|how.*sign in|how.*access|login help|sign in help)/i,
-  GOOGLE_LOGIN:    /(google.*sign|google.*login|oauth|continue with google)/i,
-  ADMIN_LOGIN:     /(admin.*login|login.*admin)/i,
-  TEACHER_LOGIN:   /(teacher.*login|faculty.*login|login.*teacher|login.*faculty)/i,
-  RESET_PASSWORD:  /(reset|forgot|change|recover).*(password|passcode)/i,
-  SUBMIT_COMPLAINT:/(submit|create|make|file|new).*(complaint|issue|grievance)/i,
-  TRACK_COMPLAINT: /(track|status|where|check).*(complaint|issue|grievance)/i,
-  FEEDBACK:        /(feedback|rate|review|satisfaction|rating)/i,
-  CONTACT_SUPPORT: /(contact|reach|talk|call|help).*(support|admin|teacher|faculty)/i,
-  NOTIFICATION:    /(notification|bell|alert|updates|announcements)/i,
-  PROFILE:         /(profile|avatar|picture|bio|personal info|update name|change password)/i,
-  DASHBOARD:       /(dashboard|home page|main page|navigate|go to)/i,
-  STATS:           /(stats|statistics|analytics|graph|chart|report)/i,
-  FEEDBACK_ANALYTICS: /(feedback.*(report|analytics|stats|summary)|rating.*report|teacher.*performance)/i,
-  ASSIGNED:        /(assigned|my complaints|workload)/i,
-  OVERLOAD:        /(overload|busy|bottleneck)/i,
-  FRUSTRATED:      /(urgent|ignored|no response|not resolved|worst|still pending|nobody|please fix|help me now|so frustrated|very frustrated)/i,
+  GREETING:           /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)\b/i,
+  THANKS:             /\b(thank|thanks|appreciate|helpful)\b/i,
+  LOGIN_HELP:         /\b(how.*login|how.*sign in|login help|sign in help|credentials)\b/i,
+  GOOGLE_LOGIN:       /\b(google.*sign|google.*login|oauth|continue with google)\b/i,
+  RESET_PASSWORD:     /\b(reset|forgot|change|recover).*(password|passcode)\b/i,
+  STATUS_LOOKUP:      /\b(status of|check status|track my|my complaint status|what is the status|track complaint|status)\b/i,
+  MY_COMPLAINTS:      /\b(my complaints|my pending|unresolved complaints|show my complaints|list my complaints|my tickets)\b/i,
+  ASSIGNED_COMPLAINTS:/\b(assigned to me|my assigned|assigned complaints|workload)\b/i,
+  CAMPUS_STATS:       /\b(stats|statistics|analytics|total complaints|campus stats|overall numbers)\b/i,
+  FEEDBACK_REPORT:    /\b(feedback report|feedback analytics|student rating|satisfaction rate|feedback stats|feedback summary)\b/i,
+  ESCALATIONS:        /\b(escalations|escalated complaints|pending over 7 days|bottlenecks)\b/i,
+  SEARCH_QUERY:       /\b(search|find|show|lookup|filter)\s+(complaint|issue|grievance|ticket)/i,
+  GIVE_FEEDBACK:      /\b(give feedback|submit feedback|rate complaint|rate teacher|rate faculty|feedback for|rate resolution|my feedback|star rating)\b/i,
+  FEEDBACK_STATEMENT: /\b(was fixed|was resolved|fixed but|took too long|not receive updates|satisfaction|unsatisfactory|terrible service|poor response|good service|great work on resolving|rating for)\b/i,
+  COMPLAINT_CREATION: /\b(submit|create|file|make|report|broken|not working|flickering|leak|leaking|damaged|stinking|dirty|noise|issue with|problem with)\b/i,
+  FRUSTRATED:         /\b(urgent|ignored|no response|not resolved|worst|still pending|nobody|please fix|help me now|so frustrated|very frustrated)\b/i
 }
 
-// ─── Empathy Prefix ─────────────────────────────────────────────────────────
-const empathyPrefix = (isUrgent) =>
-  isUrgent
-    ? "💙 I understand this is really frustrating — I'm here to help you right away.\n\n"
-    : ""
+// ─── Helper: Safely Decode Auth Token From Header ────────────────────────────
+const extractAuthContext = async (req) => {
+  let user = null
+  let role = 'guest'
+  let isAuthenticated = false
 
-// ─── Core Response Generator ─────────────────────────────────────────────────
-const generateResponse = async (message, userRole, lang = 'en', isUrgent = false) => {
-  const prefix = empathyPrefix(isUrgent)
-
-  // ── Admin-specific ───────────────────────────────────────────────────────
-  if (userRole === 'admin') {
-    if (INTENTS.FEEDBACK_ANALYTICS.test(message)) {
-      let avgRating = 4.1, totalFeedback = 0, positive = 0, neutral = 0, negative = 0, deptMap = {}
-      if (Feedback) {
-        try {
-          const allFeedback = await Feedback.find().limit(500).lean()
-          totalFeedback = allFeedback.length
-          allFeedback.forEach(fb => {
-            const rating = fb.rating || fb.overallRating || 3
-            if (rating >= 4) positive++
-            else if (rating === 3) neutral++
-            else negative++
-            const dept = fb.department || 'General'
-            if (!deptMap[dept]) deptMap[dept] = { total: 0, sum: 0 }
-            deptMap[dept].total++
-            deptMap[dept].sum += rating
-          })
-          const totalRating = allFeedback.reduce((s, f) => s + (f.rating || f.overallRating || 3), 0)
-          avgRating = totalFeedback > 0 ? (totalRating / totalFeedback).toFixed(1) : 0
-        } catch(e) { console.error('Feedback query error', e) }
-      }
-      const deptScores = Object.entries(deptMap).map(([dept, v]) => ({ dept, avg: (v.sum / v.total).toFixed(1) }))
-      const insight = await generateFeedbackAnalyticsInsight(avgRating, negative, deptScores[0]?.dept)
-      return {
-        text: `${prefix}Here is the **AI Feedback Analytics Report**:\n\n${insight}`,
-        quickActions: ['Show Stats', 'Detect Overload', 'Manage Users'],
-        widgetData: { type: 'feedback_analytics', avgRating, totalFeedback, sentiment: { positive, neutral, negative }, deptScores: deptScores.slice(0, 4) }
-      }
-    }
-    if (INTENTS.STATS.test(message)) {
-      const total = await Complaint.countDocuments().catch(() => 0)
-      const resolved = await Complaint.countDocuments({ status: 'Resolved' }).catch(() => 0)
-      const pending = await Complaint.countDocuments({ status: { $in: ['Submitted', 'Assigned'] } }).catch(() => 0)
-      return {
-        text: `${prefix}Here are the **Live Campus Statistics**:\n- 📌 **Total Complaints:** ${total}\n- ✅ **Resolved:** ${resolved}\n- ⏳ **Pending:** ${pending}\n\nI've generated an analytics card below.`,
-        quickActions: ['Detect Overload', 'Feedback Report', 'Assign Complaint'],
-        widgetData: { type: 'stats', total, resolved }
-      }
-    }
-    if (INTENTS.OVERLOAD.test(message)) {
-      return {
-        text: `${prefix}Based on AI analysis, the **Infrastructure** department is currently experiencing the highest volume of pending complaints. I recommend reassigning some cases to available faculty.\n\n**Action:** Admin Panel → Complaints → Reassign Teacher`,
-        quickActions: ['Show Stats', 'Feedback Report', 'Manage Users']
-      }
-    }
-  }
-
-  // ── Teacher-specific ─────────────────────────────────────────────────────
-  if (userRole === 'teacher') {
-    if (INTENTS.ASSIGNED.test(message)) {
-      return {
-        text: `${prefix}**Viewing Your Assigned Complaints:**\n1. Go to **Teacher Dashboard**\n2. Click **My Complaints** tab\n3. Filter by status: Active / Resolved\n4. Click any complaint to view details & update status`,
-        quickActions: ['Generate Templates', 'Update Status', 'Add Resolution Note']
-      }
-    }
-    if (/(template|quick reply|generate)/i.test(message)) {
-      const replies = await generateQuickReplies('Infrastructure')
-      return {
-        text: `${prefix}Here are **AI-generated Quick Reply templates** you can use:\n\n1. "${replies[0]}"\n2. "${replies[1]}"\n\nYou can also generate category-specific replies — just mention the category!`,
-        quickActions: ['View Assigned', 'Generate More', 'Update Status']
-      }
-    }
-    if (/(update status|mark resolved|close complaint)/i.test(message)) {
-      return {
-        text: `${prefix}**To Update a Complaint Status:**\n1. Go to **Teacher Dashboard**\n2. Click on the complaint\n3. Open the **Status** dropdown\n4. Select: In Progress / Resolved\n5. Add **Resolution Notes** (required)\n6. Click **Save Changes**`,
-        quickActions: ['View Assigned', 'Generate Templates', 'Add Note']
-      }
-    }
-    if (/(resolution note|add note|comment)/i.test(message)) {
-      return {
-        text: `${prefix}**To Add a Resolution Note:**\n1. Open the complaint from your dashboard\n2. Scroll to **Resolution Notes** field\n3. Type your detailed resolution steps\n4. Click **Update** to save\n\nStudents will be notified automatically! 📬`,
-        quickActions: ['View Assigned', 'Update Status']
-      }
-    }
-  }
-
-  // ── Complaint ID Lookup ─────────────────────────────────────────────────
-  const complaintIdMatch = message.match(/CMP-\d{4}/i)
-  if (complaintIdMatch) {
-    const cid = complaintIdMatch[0].toUpperCase()
+  const authHeader = req.headers.authorization
+  if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
-      const complaint = await Complaint.findOne({ id: cid }) || await Complaint.findById(cid).catch(() => null)
-      if (complaint) {
-        return {
-          text: `${prefix}Here is the status for **${cid}**:\n\n📋 **Title:** ${complaint.title || complaint.category}\n🏷️ **Status:** ${complaint.status}\n🏫 **Department:** ${complaint.department || 'N/A'}\n👤 **Assigned To:** ${complaint.assignedTeacherName || 'Pending Assignment'}\n📅 **Last Updated:** ${complaint.updatedAt ? new Date(complaint.updatedAt).toLocaleDateString() : 'N/A'}\n\n${complaint.resolutionNotes ? `✅ **Resolution Notes:** ${complaint.resolutionNotes}` : '⏳ Resolution in progress...'}`,
-          quickActions: ['Track Another', 'Give Feedback', 'Contact Support']
+      const token = authHeader.split(' ')[1]
+      if (token && token !== 'null' && token !== 'undefined') {
+        const secret = process.env.SECRET_KEY || process.env.JWT_SECRET || 'dev-secret'
+        const decoded = jwt.verify(token, secret)
+        const lookupId = decoded.id || decoded.userId || decoded.sub || decoded.email
+        const tokenRole = decoded.role || decoded.userRole || 'student'
+
+        if (mongoose.connection.readyState === 1) {
+          if (tokenRole === 'teacher') {
+            user = await Teacher.findOne({ $or: [{ teacherId: lookupId }, { email: (lookupId || '').toLowerCase() }] }).lean()
+          } else {
+            user = await Student.findOne({
+              $or: [
+                mongoose.Types.ObjectId.isValid(lookupId) ? { _id: lookupId } : null,
+                { studentId: lookupId },
+                { email: (lookupId || '').toLowerCase() }
+              ].filter(Boolean)
+            }).lean()
+          }
+        } else {
+          if (tokenRole === 'teacher') {
+            user = inMemoryStore.findTeacherByIdOrEmail(lookupId)
+          } else {
+            user = inMemoryStore.findStudentById(lookupId) || inMemoryStore.findStudentByEmail(lookupId)
+          }
         }
-      } else {
-        return {
-          text: `${prefix}I couldn't find a complaint with ID **${cid}**. Please double-check the ID from your complaint history.`,
-          quickActions: ['Submit Complaint', 'Contact Support', 'View Dashboard']
+
+        if (user) {
+          role = tokenRole
+          isAuthenticated = true
         }
       }
-    } catch (e) { console.error(e) }
-  }
-
-  // ── Frustrated / Urgent users ────────────────────────────────────────────
-  if (INTENTS.FRUSTRATED.test(message) && !isUrgent) {
-    return {
-      text: `💙 I completely understand your frustration, and I sincerely apologize for the delay.\n\n**Immediate Steps:**\n1. Check your complaint status → Dashboard → Complaint History\n2. If unresolved > 7 days, it qualifies for **auto-escalation**\n3. You can also contact Admin directly via the **Contact Support** page\n\nYou deserve a resolution. I'm escalating your concern! 🚀`,
-      quickActions: ['Track Complaint', 'Contact Support', 'Submit New Complaint']
+    } catch (e) {
+      // Invalid/expired token -> remain as guest
     }
   }
 
-  // ── Login Help ────────────────────────────────────────────────────────────
-  if (INTENTS.LOGIN.test(message)) {
-    return {
-      text: `${prefix}**How to Login to CampusResolve:**\n\n1. Open the CampusResolve portal\n2. Enter your **institutional email ID**\n3. Enter your **password**\n4. Click **Login**\n5. You'll be redirected to your role dashboard (Student / Teacher / Admin)\n\n💡 **Tip:** Use your college-assigned email address only.`,
-      quickActions: ['Google Sign-In Help', 'Forgot Password?', 'Admin Login Help', 'Teacher Login Help']
-    }
-  }
+  return { user, role, isAuthenticated }
+}
 
-  if (INTENTS.GOOGLE_LOGIN.test(message)) {
-    return {
-      text: `${prefix}**Google Sign-In Steps:**\n\n1. Click **"Continue with Google"** on the login screen\n2. Select your **institutional Gmail account**\n3. Grant the required permissions\n4. You'll be logged in automatically ✅\n\n⚠️ **Note:** Only pre-approved institutional email addresses can access CampusResolve. Personal Gmail accounts are not allowed.`,
-      quickActions: ['Login Help', 'Forgot Password?', 'Contact Support']
-    }
-  }
 
-  if (INTENTS.ADMIN_LOGIN.test(message)) {
-    return {
-      text: `${prefix}**Admin Login:**\n\n1. Go to the CampusResolve portal\n2. Enter your **admin email** (e.g. admin@campusresolve.edu)\n3. Enter your **admin password**\n4. Click Login — you'll access the **Admin Dashboard**\n\n🔐 Admin accounts are created by the system administrator. Contact your IT department if you need access.`,
-      quickActions: ['Login Help', 'Reset Password', 'Contact Support']
+// ─── Helper: Fetch Student's Eligible Resolved Complaints ─────────────────────
+const getEligibleResolvedComplaints = async (studentId, studentEmail) => {
+  try {
+    let resolved = []
+    if (mongoose.connection.readyState === 1) {
+      resolved = await Complaint.find({
+        $or: [
+          studentId ? { studentId } : null,
+          studentEmail ? { studentEmail: studentEmail.toLowerCase() } : null
+        ].filter(Boolean),
+        status: 'Resolved'
+      }).sort({ updatedAt: -1 }).limit(10).lean()
+    } else if (inMemoryStore && Array.isArray(inMemoryStore.complaints)) {
+      resolved = inMemoryStore.complaints.filter(c =>
+        c.status === 'Resolved' &&
+        (c.studentId === studentId || (c.studentEmail && c.studentEmail.toLowerCase() === studentEmail.toLowerCase()))
+      )
     }
-  }
 
-  if (INTENTS.TEACHER_LOGIN.test(message)) {
-    return {
-      text: `${prefix}**Teacher / Faculty Login:**\n\n1. Go to the CampusResolve portal\n2. Enter your **Teacher ID** (e.g. TCH-CSE-001) as your username\n3. Enter your assigned **password**\n4. Click Login → access the **Teacher Dashboard**\n\n📋 **Department Teacher IDs:**\n- CSE: TCH-CSE-001\n- ECE: TCH-ECE-001\n- MECH: TCH-MECH-001\n- EEE: TCH-EEE-001\n- AIDS: TCH-AIDS-001\n- IT: TCH-IT-001`,
-      quickActions: ['Login Help', 'Reset Password', 'Contact Support']
+    // Filter out complaints that already have feedback
+    const existingFeedbackIds = new Set()
+    if (mongoose.connection.readyState === 1) {
+      const feedbacks = await Feedback.find({
+        complaintId: { $in: resolved.map(r => r.complaintId || r._id.toString()) }
+      }).select('complaintId').lean()
+      feedbacks.forEach(f => existingFeedbackIds.add(f.complaintId))
+    } else if (inMemoryStore && Array.isArray(inMemoryStore.feedback)) {
+      inMemoryStore.feedback.forEach(f => existingFeedbackIds.add(f.complaintId))
     }
-  }
 
-  // ── Password Reset ────────────────────────────────────────────────────────
-  if (INTENTS.RESET_PASSWORD.test(message)) {
-    return {
-      text: `${prefix}**How to Reset Your Password:**\n\n1. Click **"Forgot Password"** on the login page\n2. Enter your registered **email ID**\n3. Check your **Gmail** for the OTP\n4. Enter the OTP on the verification screen\n5. Create a **new strong password**\n6. Click Save — then login again securely ✅\n\n⏱️ OTP is valid for **10 minutes** only.`,
-      quickActions: ['Login Help', 'Google Sign-In Help', 'Contact Support']
-    }
-  }
-
-  // ── Submit Complaint ──────────────────────────────────────────────────────
-  if (INTENTS.SUBMIT_COMPLAINT.test(message)) {
-    return {
-      text: `${prefix}**How to Submit a Complaint:**\n\n1. Go to your **Student Dashboard**\n2. Click **"Complaint Form"** or **"Submit Complaint"**\n3. Fill in all required details:\n   - Title, Description, Department\n   - Category (AI will auto-suggest!)\n4. Optionally assign a preferred teacher\n5. Click **Submit** ✅\n\n💡 **AI Tip:** Type a detailed description and I'll suggest the right category and priority for you!`,
-      quickActions: ['Track Complaint', 'AI Writing Help', 'View Dashboard']
-    }
-  }
-
-  // ── Track Complaint ───────────────────────────────────────────────────────
-  if (INTENTS.TRACK_COMPLAINT.test(message)) {
-    return {
-      text: `${prefix}**How to Track Your Complaint:**\n\nEnter your **Complaint ID** (format: CMP-1234) and I'll look it up instantly! 🔍\n\nOr you can:\n1. Go to **Dashboard → Complaint History**\n2. Filter by status: Submitted / In Progress / Resolved\n3. Click any complaint to view full details\n\n📌 Your Complaint ID is shown in the confirmation email when you submit.`,
-      quickActions: ['Submit Complaint', 'Contact Support', 'View Dashboard'],
-      widgetData: { type: 'awaiting_id', hint: 'Type your Complaint ID (e.g. CMP-1001)' }
-    }
-  }
-
-  // ── Feedback ──────────────────────────────────────────────────────────────
-  if (INTENTS.FEEDBACK.test(message)) {
-    return {
-      text: `${prefix}**How to Submit Feedback:**\n\n1. Go to **Dashboard → Feedback Portal**\n2. Select a **resolved complaint** to rate\n3. Rate your experience across metrics:\n   - Response Speed ⭐\n   - Resolution Quality ⭐\n   - Teacher Communication ⭐\n4. Write a comment (AI can help enhance it! ✨)\n5. Click **Submit Feedback**\n\n📊 Your feedback helps improve campus services for everyone!`,
-      quickActions: ['Submit Complaint', 'AI Writing Help', 'View Notifications']
-    }
-  }
-
-  // ── Notifications ─────────────────────────────────────────────────────────
-  if (INTENTS.NOTIFICATION.test(message)) {
-    return {
-      text: `${prefix}**How Notifications Work:**\n\n🔔 Click the **Bell icon** in the top navigation bar to see all updates.\n\n**Types of Notifications:**\n- 📌 Complaint Submitted confirmation\n- 👤 Complaint Assigned to teacher\n- 🔄 Status Updated (In Progress)\n- ✅ Complaint Resolved\n- 📝 Feedback Reminder\n- 📧 OTP / Password Reset alerts\n\nNotifications are delivered in **real-time** via Socket.io!`,
-      quickActions: ['Track Complaint', 'Give Feedback', 'View Dashboard']
-    }
-  }
-
-  // ── Profile Help ──────────────────────────────────────────────────────────
-  if (INTENTS.PROFILE.test(message)) {
-    return {
-      text: `${prefix}**Profile Management Guide:**\n\n👤 **Update Profile:**\n→ Click your avatar (top-right) → Profile Settings → Edit\n\n🔑 **Change Password:**\n→ Profile → Security Settings → Change Password\n\n📷 **Upload Profile Picture:**\n→ Profile → Click avatar → Upload Photo\n\n📋 **View Activity History:**\n→ Profile → Activity History tab\n\n✨ **Generate AI Bio:**\n→ Profile → Edit → Click "Generate with AI" button`,
-      quickActions: ['Change Password', 'Login Help', 'View Dashboard']
-    }
-  }
-
-  // ── Contact Support ───────────────────────────────────────────────────────
-  if (INTENTS.CONTACT_SUPPORT.test(message)) {
-    return {
-      text: `${prefix}**Contact & Support Options:**\n\n1. 📧 **Email Support** → Use the Contact page in the portal\n2. 🏛️ **Visit Office** → Coordinator's office for urgent issues\n3. 📢 **Escalate Complaint** → Complaints pending > 7 days are auto-escalated\n4. 🤖 **AI Assistant** → I'm always here! Just ask me anything.\n\n**Emergency?** Please visit the campus coordinator's office directly.`,
-      quickActions: ['Submit Complaint', 'Track Complaint', 'Reset Password']
-    }
-  }
-
-  // ── Dashboard Navigation ──────────────────────────────────────────────────
-  if (INTENTS.DASHBOARD.test(message)) {
-    const roleActions = {
-      admin: ['View Analytics', 'Manage Users', 'Assign Complaints', 'Broadcast Announcement'],
-      teacher: ['View Assigned', 'Update Status', 'View Ratings'],
-      student: ['Submit Complaint', 'Track Complaint', 'Give Feedback', 'View Notifications']
-    }
-    return {
-      text: `${prefix}**Your Dashboard — Quick Navigation:**\n\n${(roleActions[userRole] || roleActions.student).map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\n💡 Use the **sidebar menu** to navigate between sections. Your role-specific features are pre-loaded!`,
-      quickActions: roleActions[userRole] || roleActions.student
-    }
-  }
-
-  // ── Greeting ──────────────────────────────────────────────────────────────
-  if (INTENTS.GREETING.test(message)) {
-    const roleGreeting = {
-      admin: { text: 'Hello Admin! 🛡️ I have live campus data ready. What would you like to monitor today?', actions: ['Show Stats', 'Feedback Report', 'Detect Overload', 'Manage Users'] },
-      teacher: { text: 'Hello Faculty! 🎓 I can help you manage assigned complaints, generate quick replies, or summarize pending issues.', actions: ['View Assigned', 'Generate Templates', 'Update Status', 'View Ratings'] },
-      student: { text: 'Hello! 👋 I\'m your CampusResolve AI Assistant. How can I help you today?', actions: ['Submit Complaint', 'Track Complaint', 'Reset Password', 'Give Feedback'] }
-    }
-    const g = roleGreeting[userRole] || roleGreeting.student
-    return { text: g.text, quickActions: g.actions }
-  }
-
-  // ── Thanks ────────────────────────────────────────────────────────────────
-  if (INTENTS.THANKS.test(message)) {
-    return {
-      text: "You're very welcome! 😊 I'm always here if you need anything else. Have a great day!",
-      quickActions: ['Submit Complaint', 'Track Complaint', 'Give Feedback']
-    }
-  }
-
-  // ── AI Writing Assistant (long draft detection) ───────────────────────────
-  if (message.length > 50 && !INTENTS.SUBMIT_COMPLAINT.test(message) && !INTENTS.TRACK_COMPLAINT.test(message) && !INTENTS.FEEDBACK.test(message)) {
-    const [suggestedCategory, predictedPriority, summary] = await Promise.all([
-      autoSuggestCategory(message),
-      predictPriority(message),
-      generateSummary(message)
-    ])
-    return {
-      text: `${prefix}It looks like you're describing a complaint. Here is my **AI Analysis**:\n\n📝 **Suggested Title:** ${summary}\n🏷️ **Detected Category:** ${suggestedCategory}\n⚡ **Predicted Priority:** ${predictedPriority}\n\nWould you like to formally submit this as a complaint?`,
-      quickActions: ['Submit Complaint', 'Improve My Text', 'Contact Support']
-    }
-  }
-
-  // ── Gemini AI Fallback ────────────────────────────────────────────────────
-  const geminiAnswer = await answerChatbotQuestion(message, { role: userRole, lang, isUrgent })
-  return {
-    text: geminiAnswer,
-    quickActions: userRole === 'admin'
-      ? ['Show Stats', 'Feedback Report', 'Detect Overload']
-      : userRole === 'teacher'
-        ? ['View Assigned', 'Generate Templates', 'Update Status']
-        : ['Submit Complaint', 'Track Complaint', 'Contact Support']
+    return resolved.map(c => ({
+      id: c._id,
+      complaintId: c.complaintId || c._id.toString(),
+      title: c.title || c.category,
+      category: c.category,
+      department: c.department,
+      assignedTeacherId: c.assignedTeacherId || '',
+      assignedTeacherName: c.assignedTeacherName || 'Faculty Team',
+      resolutionNotes: c.resolutionNotes || '',
+      hasFeedback: existingFeedbackIds.has(c.complaintId) || existingFeedbackIds.has(c._id.toString())
+    }))
+  } catch (err) {
+    console.error('[AI] Fetch resolved complaints error:', err.message)
+    return []
   }
 }
 
 // ─── POST /api/chatbot/message ────────────────────────────────────────────────
 router.post('/message', async (req, res) => {
   try {
-    const { message, sessionId, userId, userRole, lang = 'en', isUrgent = false } = req.body
-    if (!message) return res.status(400).json({ error: 'Message is required' })
+    const {
+      message,
+      sessionId,
+      conversationState,
+      complaintDraft,
+      feedbackDraft,
+      history = [],
+      actionType = null,
+      requestId = null,
+      previousAssistantMessage = ''
+    } = req.body
 
-    const currentSessionId = sessionId || crypto.randomUUID()
+    if (!message && !actionType) {
+      return res.status(400).json({ error: 'Message or action is required' })
+    }
 
-    // Detect frustration from message even if not flagged by frontend
-    const autoUrgent = isUrgent || INTENTS.FRUSTRATED.test(message)
+    const { user, role, isAuthenticated } = await extractAuthContext(req)
 
-    const botResponse = await generateResponse(message, userRole, lang, autoUrgent)
-
-    // Log asynchronously
-    setImmediate(async () => {
-      try {
-        await ChatLog.updateOne(
-          { sessionId: currentSessionId },
-          {
-            $set: { userId, userRole: userRole || 'guest' },
-            $push: {
-              messages: {
-                $each: [
-                  { sender: 'user', text: message },
-                  { sender: 'bot', text: botResponse.text }
-                ]
-              }
-            }
-          },
-          { upsert: true }
-        )
-      } catch (logError) { console.error('Failed to log chat:', logError) }
+    const response = await orchestrateChat({
+      message: message || '',
+      sessionId,
+      user,
+      role,
+      isAuthenticated,
+      conversationState,
+      complaintDraft,
+      feedbackDraft,
+      history,
+      actionType,
+      requestId,
+      previousAssistantMessage
     })
 
-    setTimeout(() => {
-      res.json({
-        sessionId: currentSessionId,
-        text: botResponse.text,
-        quickActions: botResponse.quickActions,
-        widgetData: botResponse.widgetData || null,
-        isUrgent: autoUrgent
-      })
-    }, 400)
+    // Async chat log persistence
+    setImmediate(async () => {
+      try {
+        if (response.sessionId && mongoose.connection.readyState === 1) {
+          const studentId = user?.studentId || user?._id?.toString() || 'guest'
+          await ChatLog.updateOne(
+            { sessionId: response.sessionId },
+            {
+              $set: { userId: studentId, userRole: role || 'guest' },
+              $push: {
+                messages: {
+                  $each: [
+                    { sender: 'user', text: message || actionType || '' },
+                    { sender: 'bot', text: response.text || '' }
+                  ]
+                }
+              }
+            },
+            { upsert: true }
+          )
+        }
+      } catch (logErr) {
+        // non-blocking
+      }
+    })
 
+    return res.json(response)
   } catch (error) {
-    console.error('Chatbot error:', error)
-    res.status(500).json({ error: 'Failed to process message' })
+    console.error('[AI] Chatbot message error:', error)
+    return res.status(500).json({
+      error: 'AI is temporarily unavailable. Please try again.',
+      text: 'AI assistance is temporarily unavailable, but I can still help you check complaints and use available CampusResolve features.'
+    })
   }
 })
 
-// ─── GET /api/chatbot/logs (admin only) ───────────────────────────────────────
+// ─── GET /api/chatbot/eligible-resolved-complaints ───────────────────────────
+router.get('/eligible-resolved-complaints', protect, async (req, res) => {
+  try {
+    const studentUser = req.user
+    if (!studentUser) return res.status(401).json({ message: 'Authentication required' })
+
+    const studentId = studentUser.studentId || studentUser._id?.toString()
+    const studentEmail = (studentUser.email || '').toLowerCase()
+
+    const resolved = await getEligibleResolvedComplaints(studentId, studentEmail)
+    res.json({ complaints: resolved })
+  } catch (err) {
+    console.error('Eligible complaints error:', err)
+    res.status(500).json({ message: 'Failed to fetch eligible resolved complaints' })
+  }
+})
+
+// ─── POST /api/chatbot/submit-feedback ───────────────────────────────────────
+// Authenticated endpoint when student confirms feedback submission from preview card
+router.post('/submit-feedback', protect, async (req, res) => {
+  try {
+    const { complaintId, rating, comment, category, aiAnalysis } = req.body
+
+    if (!complaintId || !rating) {
+      return res.status(400).json({ success: false, message: 'Complaint ID and rating are required.' })
+    }
+
+    const studentUser = req.user
+    if (!studentUser) {
+      return res.status(401).json({ success: false, message: 'Authentication required' })
+    }
+
+    const studentName = studentUser.name || 'Student'
+    const studentEmail = (studentUser.email || '').toLowerCase()
+    const studentId = studentUser.studentId || studentUser._id?.toString()
+
+    // 1. Verify complaint exists and belongs to student & is Resolved
+    let complaint = null
+    if (mongoose.connection.readyState === 1) {
+      complaint = await Complaint.findOne({
+        $or: [
+          { complaintId: complaintId },
+          mongoose.Types.ObjectId.isValid(complaintId) ? { _id: complaintId } : null
+        ].filter(Boolean)
+      })
+    } else if (inMemoryStore) {
+      complaint = inMemoryStore.complaints.find(c =>
+        (c.complaintId && c.complaintId === complaintId) || String(c._id) === complaintId
+      )
+    }
+
+    if (!complaint) {
+      return res.status(404).json({ success: false, message: 'Complaint not found.' })
+    }
+
+    // Verify ownership
+    const isOwner = (complaint.studentId && complaint.studentId === studentId) ||
+                    (complaint.studentEmail && complaint.studentEmail.toLowerCase() === studentEmail)
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'You can only submit feedback for your own complaints.' })
+    }
+
+    if (complaint.status !== 'Resolved') {
+      return res.status(400).json({ success: false, message: 'Feedback can only be submitted for resolved complaints.' })
+    }
+
+    // 2. Check for duplicate feedback
+    if (mongoose.connection.readyState === 1) {
+      const existing = await Feedback.findOne({ complaintId: complaint.complaintId || complaintId })
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Feedback has already been submitted for this complaint.' })
+      }
+    }
+
+    const assignedTeacherId = complaint.assignedTeacherId || 'TCH-CSE-001'
+    const assignedTeacherName = complaint.assignedTeacherName || 'Faculty Member'
+    const department = complaint.department || 'CSE'
+    const finalRating = Math.min(5, Math.max(1, parseInt(rating, 10) || 5))
+
+    const isLowRating = finalRating <= 2 || (aiAnalysis && aiAnalysis.sentiment === 'Negative')
+
+    const feedbackData = {
+      complaintId: complaint.complaintId || complaintId,
+      studentName,
+      studentId,
+      studentEmail,
+      department,
+      teacherId: assignedTeacherId,
+      teacherName: assignedTeacherName,
+      rating: finalRating,
+      category: category || complaint.category || 'Resolution Satisfaction',
+      comment: comment || '',
+      aiAnalysis: aiAnalysis ? {
+        sentiment: aiAnalysis.sentiment || 'Neutral',
+        confidence: aiAnalysis.confidence || 0.9,
+        topics: aiAnalysis.topics || ['Overall Experience'],
+        resolutionQuality: aiAnalysis.resolutionQuality || 'Satisfactory',
+        responseTime: aiAnalysis.responseTime || 'Moderate',
+        communication: aiAnalysis.communication || 'Moderate',
+        summary: aiAnalysis.summary || '',
+        suggestedFollowUp: aiAnalysis.suggestedFollowUp || '',
+        isLowRatingAlert: isLowRating
+      } : undefined,
+      date: new Date()
+    }
+
+    let savedFeedback = null
+    if (mongoose.connection.readyState === 1) {
+      const feedbackDoc = new Feedback(feedbackData)
+      savedFeedback = await feedbackDoc.save()
+
+      // Update complaint
+      complaint.studentFeedback = comment || ''
+      complaint.satisfactionRating = finalRating
+      await complaint.save()
+    } else if (inMemoryStore) {
+      savedFeedback = inMemoryStore.createFeedback(feedbackData)
+    }
+
+    // 3. Dispatch Notifications
+    if (isLowRating) {
+      // Alert Faculty & Admin for Low Rating / Dissatisfaction Attention
+      await createNotification({
+        userId: assignedTeacherId,
+        userRole: 'teacher',
+        type: 'feedback',
+        title: '⚠️ Low Rating Feedback Alert',
+        message: `Low satisfaction (${finalRating}/5 ⭐) reported by ${studentName} on ${complaint.complaintId || complaintId}.`,
+        metadata: {
+          complaintId: complaint.complaintId || complaintId,
+          rating: finalRating,
+          suggestedFollowUp: aiAnalysis?.suggestedFollowUp || ''
+        }
+      }).catch(() => {})
+
+      if (mongoose.connection.readyState === 1) {
+        const admins = await Student.find({ role: 'admin', isActive: true }).select('_id').catch(() => [])
+        await Promise.all(admins.map(admin =>
+          createNotification({
+            userId: admin._id.toString(),
+            userRole: 'admin',
+            type: 'feedback',
+            title: '⚠️ Feedback Attention Required',
+            message: `Low rating (${finalRating}/5 ⭐) on ${complaint.complaintId || complaintId}: "${aiAnalysis?.summary || comment}"`,
+            metadata: {
+              complaintId: complaint.complaintId || complaintId,
+              rating: finalRating,
+              suggestedFollowUp: aiAnalysis?.suggestedFollowUp || ''
+            }
+          }).catch(() => {})
+        ))
+      }
+    } else {
+      // Standard Feedback Notification
+      await createNotification({
+        userId: assignedTeacherId,
+        userRole: 'teacher',
+        type: 'feedback',
+        title: 'New Feedback Received ⭐',
+        message: `${studentName} provided ${finalRating}/5 ⭐ rating on ${complaint.title || complaint.complaintId}.`,
+        metadata: {
+          complaintId: complaint.complaintId || complaintId,
+          rating: finalRating
+        }
+      }).catch(() => {})
+    }
+
+    // Email notifications asynchronously
+    let teacherDoc = null
+    if (mongoose.connection.readyState === 1) {
+      teacherDoc = await Teacher.findOne({ teacherId: assignedTeacherId }).catch(() => null)
+    }
+    sendFeedbackNotification(savedFeedback, teacherDoc).catch(e => console.warn('[AI] Feedback teacher email error:', e.message))
+    sendFeedbackAdminNotification(savedFeedback, teacherDoc).catch(e => console.warn('[AI] Feedback admin email error:', e.message))
+
+    // Activity Log
+    logActivity(
+      complaint._id || complaint.complaintId || complaintId,
+      'feedback_submitted',
+      { userId: studentId, name: studentName, role: 'student' },
+      { rating: finalRating, comment, sentiment: aiAnalysis?.sentiment },
+      `Student submitted feedback with ${finalRating}/5 stars`
+    ).catch(() => {})
+
+    return res.status(201).json({
+      success: true,
+      message: `Feedback for ${complaint.complaintId || complaintId} submitted successfully!`,
+      feedback: savedFeedback
+    })
+
+  } catch (err) {
+    console.error('[AI] Submit feedback error:', err)
+    return res.status(500).json({ success: false, message: 'Failed to submit feedback' })
+  }
+})
+
+// ─── POST /api/chatbot/join-complaint ─────────────────────────────────────────
+router.post('/join-complaint', protect, async (req, res) => {
+  try {
+    const { complaintId } = req.body
+    if (!complaintId) {
+      return res.status(400).json({ success: false, message: 'complaintId is required' })
+    }
+
+    const studentUser = req.user
+    if (!studentUser) {
+      return res.status(401).json({ success: false, message: 'Authentication required' })
+    }
+
+    const result = await joinExistingComplaint(complaintId, studentUser)
+    if (!result.success) {
+      return res.status(400).json(result)
+    }
+
+    // Send notifications to admins
+    if (mongoose.connection.readyState === 1 && !result.alreadyJoined) {
+      const admins = await Student.find({ role: 'admin', isActive: true }).select('_id').catch(() => [])
+      await Promise.all(admins.map(admin =>
+        createNotification({
+          userId: admin._id.toString(),
+          userRole: 'admin',
+          type: 'complaint_updated',
+          title: 'Additional Student Joined Ticket',
+          message: `${studentUser.name || 'A student'} reported being affected by ${result.complaintId}: "${result.title}" (Total affected: ${result.affectedCount}).`,
+          metadata: {
+            complaintId: result.complaintId,
+            ticketNumber: result.complaintId
+          }
+        }).catch(() => {})
+      ))
+    }
+
+    return res.json(result)
+  } catch (err) {
+    console.error('[AI] join-complaint route error:', err)
+    return res.status(500).json({ success: false, message: 'Failed to join complaint' })
+  }
+})
+
+// ─── POST /api/chatbot/create-complaint ───────────────────────────────────────
+router.post('/create-complaint', protect, async (req, res) => {
+  try {
+    const { title, category, department, description, priority, location, duplicateDetection, duplicateDecision } = req.body
+
+    if (!category || !description) {
+      return res.status(400).json({ message: 'Category and description are required' })
+    }
+
+    const studentUser = req.user
+    if (!studentUser) {
+      return res.status(401).json({ message: 'Authentication required' })
+    }
+
+    const studentName = studentUser.name || 'Student'
+    const studentEmail = (studentUser.email || '').toLowerCase()
+    const studentId = studentUser.studentId || studentUser._id?.toString() || 'CR-STUDENT'
+    const studentPhone = studentUser.phone || ''
+    const assignedDept = department || studentUser.department || 'CSE'
+
+    const fullDescription = location && !description.toLowerCase().includes(location.toLowerCase())
+      ? `[Location: ${location}]\n${description}`
+      : description
+
+    const complaintId = await getNextComplaintId()
+    let savedComplaint = null
+
+    const duplicateMeta = {
+      similarityScore: duplicateDetection?.similarityScore || 0,
+      matchedComplaintId: duplicateDetection?.matchedComplaintId || '',
+      duplicateType: duplicateDetection?.duplicateType || (duplicateDecision === 'CREATED_ANYWAY' ? 'POSSIBLE_DUPLICATE' : 'NONE'),
+      detectionTimestamp: duplicateDetection ? new Date() : null,
+      userDecision: duplicateDecision || 'NONE'
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      const created = inMemoryStore.createComplaint({
+        complaintId,
+        title: title || `${category} Issue`,
+        category,
+        department: assignedDept,
+        description: fullDescription,
+        location: location || '',
+        priority: priority || 'medium',
+        studentName,
+        studentEmail,
+        studentId,
+        studentPhone,
+        affectedCount: 1,
+        affectedUsers: [{ studentId, studentName, studentEmail, joinedAt: new Date().toISOString() }],
+        duplicateDetection: duplicateMeta
+      })
+      savedComplaint = created
+    } else {
+      const complaintDoc = new Complaint({
+        complaintId,
+        title: title || `${category} Issue`,
+        category,
+        department: assignedDept,
+        description: fullDescription,
+        location: location || '',
+        priority: (priority || 'medium').toLowerCase() === 'urgent' ? 'Urgent' : (priority || 'medium').toLowerCase(),
+        studentName,
+        studentEmail,
+        studentId: studentUser._id ? studentUser._id.toString() : studentId,
+        studentPhone,
+        status: 'Submitted',
+        affectedCount: 1,
+        affectedUsers: [
+          {
+            studentId: studentUser._id ? studentUser._id.toString() : studentId,
+            studentName,
+            studentEmail,
+            joinedAt: new Date()
+          }
+        ],
+        duplicateDetection: duplicateMeta,
+        resolutionTimeline: [
+          {
+            status: 'Submitted',
+            timestamp: new Date(),
+            updatedBy: 'CampusResolve AI Assistant',
+            notes: 'Complaint submitted via AI Assistant conversation'
+          }
+        ]
+      })
+
+      savedComplaint = await complaintDoc.save()
+
+      if (studentUser._id) {
+        await Student.updateOne({ _id: studentUser._id }, { $inc: { totalComplaints: 1 } }).catch(() => {})
+      }
+    }
+
+    const notifUserId = studentUser._id ? studentUser._id.toString() : studentId
+    await createNotification({
+      userId: notifUserId,
+      userRole: 'student',
+      type: 'complaint_submitted',
+      title: 'Complaint Submitted via AI Assistant',
+      message: `Your complaint **${complaintId}** (${category}) has been logged successfully.`,
+      metadata: {
+        complaintId: savedComplaint._id ? savedComplaint._id.toString() : complaintId,
+        ticketNumber: complaintId,
+        complaintCategory: category
+      }
+    }).catch(() => {})
+
+    if (mongoose.connection.readyState === 1) {
+      const admins = await Student.find({ role: 'admin', isActive: true }).select('_id').catch(() => [])
+      await Promise.all(admins.map(admin =>
+        createNotification({
+          userId: admin._id.toString(),
+          userRole: 'admin',
+          type: 'complaint_submitted',
+          title: 'New Complaint Filed via AI',
+          message: `${studentName} filed ${complaintId}: "${title || category}".`,
+          metadata: {
+            complaintId: savedComplaint._id ? savedComplaint._id.toString() : complaintId,
+            ticketNumber: complaintId,
+            complaintCategory: category
+          }
+        }).catch(() => {})
+      ))
+    }
+
+    emitToRole('admin', 'new_complaint', {
+      complaintId: savedComplaint._id || complaintId,
+      ticketNumber: complaintId,
+      studentName,
+      category,
+      department: assignedDept,
+      priority: savedComplaint.priority
+    })
+
+    sendComplaintSubmittedEmails(savedComplaint).catch(err => {
+      console.warn('[AI] Email dispatch warning:', err.message)
+    })
+
+    logActivity(
+      savedComplaint._id || complaintId,
+      'created',
+      { userId: studentId, name: studentName, role: 'student' },
+      { category, department: assignedDept, priority: savedComplaint.priority, title: savedComplaint.title, source: 'ai_assistant' },
+      'Complaint created via CampusResolve AI Assistant'
+    ).catch(() => {})
+
+    return res.status(201).json({
+      success: true,
+      message: `Complaint ${complaintId} created successfully!`,
+      complaint: {
+        id: savedComplaint._id,
+        complaintId,
+        ticketNumber: complaintId,
+        title: savedComplaint.title,
+        category: savedComplaint.category,
+        department: savedComplaint.department,
+        priority: savedComplaint.priority,
+        status: savedComplaint.status,
+        createdAt: savedComplaint.createdAt || new Date()
+      }
+    })
+
+  } catch (err) {
+    console.error('[AI] Create complaint from chat error:', err)
+    return res.status(500).json({ message: 'Failed to create complaint from AI Assistant' })
+  }
+})
+
+// ─── GET /api/chatbot/logs (Admin only) ───────────────────────────────────────
 router.get('/logs', protect, authorize('admin'), async (req, res) => {
   try {
     const logs = await ChatLog.find().sort({ updatedAt: -1 }).limit(100)
@@ -360,15 +652,16 @@ router.get('/logs', protect, authorize('admin'), async (req, res) => {
 // ─── POST /api/chatbot/enhance-text ──────────────────────────────────────────
 router.post('/enhance-text', async (req, res) => {
   try {
-    const { text } = req.body
+    const { text, mode } = req.body
     if (!text) return res.status(400).json({ error: 'Text is required' })
-    const enhanced = await enhanceFeedbackText(text)
+    const enhanced = await enhanceFeedbackText(text, mode || 'improve')
     res.json({ enhanced })
   } catch (error) {
     console.error('Enhance text error:', error)
     res.status(500).json({ error: 'Failed to enhance text' })
   }
 })
+
 
 // ─── POST /api/chatbot/generate-bio ──────────────────────────────────────────
 router.post('/generate-bio', async (req, res) => {
@@ -382,8 +675,6 @@ router.post('/generate-bio', async (req, res) => {
     res.status(500).json({ error: 'Failed to generate bio' })
   }
 })
-
-const mongoose = require('mongoose')
 
 // ─── POST /api/chatbot/user-context ──────────────────────────────────────────
 router.post('/user-context', async (req, res) => {
@@ -401,7 +692,7 @@ router.post('/user-context', async (req, res) => {
         Complaint.countDocuments({ studentId: userId, status: { $in: ['Submitted', 'Assigned'] } }).catch(() => 0),
         Complaint.countDocuments({ studentId: userId, status: 'In Progress' }).catch(() => 0),
         Complaint.find({ studentId: userId, status: 'Resolved', $or: [{ studentFeedback: '' }, { studentFeedback: null }, { studentFeedback: { $exists: false } }] })
-          .select('_id title category').limit(3).lean().catch(() => [])
+          .select('_id title category complaintId').limit(3).lean().catch(() => [])
       ])
       contextData = { role: userRole, total, resolved, pending, inProgress, resolvedWithoutFeedback }
     } else if (userRole === 'admin') {

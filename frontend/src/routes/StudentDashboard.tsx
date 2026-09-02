@@ -473,11 +473,12 @@ const StudentDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsSubmitModalOpen(true)}
-              className="w-full h-11 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#111827] font-bold text-[13px] hover:bg-[#2563EB] dark:hover:bg-blue-500 dark:hover:text-white transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              className="w-full h-11 rounded-xl bg-slate-900 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold text-[13px] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
             >
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               Submit Grievance Now
             </button>
+
           </div>
 
           {/* Recent Tickets List Card (Spans 4 cols on desktop) */}

@@ -29,9 +29,10 @@ const sizeMap: Record<ButtonSize, string> = {
 }
 
 const variantMap: Record<ButtonVariant, string> = {
-  primary:   'bg-[#111827] text-white hover:bg-[#2563EB] active:bg-[#1D4ED8] dark:bg-[#F8FAFC] dark:text-[#0F172A] dark:hover:bg-[#60A5FA] shadow-[var(--shadow-sm)] border border-transparent',
-  secondary: 'bg-white dark:bg-[#0F172A] hover:bg-[#F8FAFC] dark:hover:bg-slate-800 text-[var(--text-primary)] border border-[rgba(15,23,42,0.07)] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-sm)]',
+  primary:   'bg-[#111827] text-white hover:bg-[#2563EB] active:bg-[#1D4ED8] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] shadow-[var(--shadow-sm)] border border-transparent',
+  secondary: 'bg-white dark:bg-[#162030] hover:bg-slate-50 dark:hover:bg-[#1E2C42] text-[var(--text-primary)] border border-[var(--border)] shadow-[var(--shadow-sm)]',
   outline:   'bg-transparent text-[var(--primary)] border border-[var(--primary-border)] hover:bg-[var(--primary-soft)]',
+
   ghost:     'bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]',
   danger:    'bg-[#EF4444] hover:bg-rose-700 active:bg-rose-800 text-white shadow-[var(--shadow-sm)] border border-transparent',
   success:   'bg-[#10B981] hover:bg-emerald-700 text-white shadow-[var(--shadow-sm)] border border-transparent',

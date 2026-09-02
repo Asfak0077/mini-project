@@ -79,9 +79,10 @@ const AboutPage: React.FC = () => {
       {/* Top Header */}
       <header className="relative z-50 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex justify-between items-center">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md bg-[#111827] dark:bg-white dark:text-[#111827]">
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md ring-1 ring-white/20 bg-gradient-to-br from-blue-600 to-indigo-600">
             CR
           </div>
+
           <span className="text-lg font-black text-[var(--text-primary)] tracking-tighter">
             CampusResolve
           </span>

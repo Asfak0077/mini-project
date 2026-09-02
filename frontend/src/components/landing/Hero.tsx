@@ -23,19 +23,19 @@ const Hero = () => {
             transition={{ delay: 0.1, duration: 0.4 }}
           >
             <Badge variant="primary" icon={<Zap className="w-3.5 h-3.5 text-blue-500 animate-pulse" />}>
-              Official Smart Campus Platform
+              Student Support Portal
             </Badge>
           </motion.div>
           
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.1]">
-            Transforming Campus Grievances Into{' '}
-            <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 bg-clip-text text-transparent">
-              Instant Resolutions
+            CampusResolve
+            <span className="block bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 bg-clip-text text-transparent mt-2 text-2xl sm:text-3xl lg:text-4xl font-extrabold">
+              Report a Problem. Get It Resolved.
             </span>
           </h1>
 
           <p className="text-base sm:text-lg font-semibold text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
-            CampusResolve&apos;s Smart Digital Complaint & Feedback Management System empowers students, faculty, and administrators with real-time tracking, AI-assisted reporting, and transparent SLA management.
+            CampusResolve helps students report academic, hostel, and campus issues in one place. Track your complaint and get updates until the issue is resolved.
           </p>
 
           {/* Action Buttons */}
@@ -53,18 +53,22 @@ const Hero = () => {
           </div>
 
           {/* Quick Highlight Badges */}
-          <div className="pt-6 border-t border-slate-200/80 dark:border-slate-800/80 grid grid-cols-3 gap-4 text-xs font-bold text-slate-500 dark:text-slate-400">
+          <div className="pt-6 border-t border-slate-200/80 dark:border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>24h Resolution SLA</span>
+              <span>Easy Submission</span>
             </div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-              <span>JWT & Role Security</span>
+              <Activity className="w-4 h-4 text-cyan-500 shrink-0" />
+              <span>Track Complaint</span>
             </div>
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-cyan-500 shrink-0" />
-              <span>AI Feedback System</span>
+              <MessageSquare className="w-4 h-4 text-blue-500 shrink-0" />
+              <span>AI Assistance</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span>Safe & Secure</span>
             </div>
           </div>
         </motion.div>
@@ -91,15 +95,16 @@ const Hero = () => {
                 </span>
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
-                SDCFRS Engine
+                Support Portal
               </span>
             </div>
 
             <div className="space-y-4">
               {[
-                { label: 'Grievance Submitted', detail: 'Student Auth Verified & Encrypted', color: 'bg-blue-500', icon: '1' },
-                { label: 'Auto Department Routing', detail: 'Assigned to CSE / ECE / MECH Faculty', color: 'bg-cyan-500', icon: '2' },
-                { label: 'Action & Verification', detail: 'Real-time Resolution & Student Feedback', color: 'bg-emerald-500', icon: '3' }
+                { label: 'Submit Complaints Easily', detail: 'Report your problem quickly with the required details', color: 'bg-blue-500', icon: '1' },
+                { label: 'Track Your Complaint', detail: 'Check the latest status and follow the progress of your complaint', color: 'bg-cyan-500', icon: '2' },
+                { label: 'Get Help from AI', detail: 'Use the AI Assistant to help create and manage your complaints', color: 'bg-indigo-500', icon: '3' },
+                { label: 'Safe & Secure', detail: 'Your personal information and complaint details are protected', color: 'bg-emerald-500', icon: '4' }
               ].map((step) => (
                 <div key={step.label} className="flex items-start gap-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-blue-500/30 transition-all">
                   <div className={`w-9 h-9 rounded-xl ${step.color} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md`}>
@@ -119,7 +124,7 @@ const Hero = () => {
 
             <div className="mt-6 pt-4 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-blue-500" /> Average Escalation Time
+                <Clock className="w-4 h-4 text-blue-500" /> Target Resolution Time
               </span>
               <span className="font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">
                 &lt; 24 Hours

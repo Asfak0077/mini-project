@@ -21,8 +21,104 @@ const {
   sendComplaintAssignedEmails,
   sendComplaintResolvedEmail
 } = require('../services/emailService')
+const { predictComplaintResolution } = require('../utils/aiSimulator')
 
 const router = express.Router()
+
+// ============ AI RESOLUTION PREDICTION ROUTE ============
+
+// Predict resolution parameters before submission
+router.post('/predict-resolution', async (req, res) => {
+  try {
+    const {
+      title = '',
+      description = '',
+      category = 'Infrastructure',
+      location = '',
+      department = 'General',
+      priority = 'medium',
+      timeOfSubmission = new Date().toISOString()
+    } = req.body
+
+    // 1. Gather historical data from database or inMemoryStore
+    let historicalStats = { count: 0, avgHours: 0, slaRate: 90 }
+
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const similarResolved = await Complaint.find({
+          category,
+          status: 'Resolved'
+        }).sort({ updatedAt: -1 }).limit(30).lean()
+
+        if (similarResolved.length > 0) {
+          let totalHours = 0
+          let withinSlaCount = 0
+
+          similarResolved.forEach((c) => {
+            const start = new Date(c.createdAt).getTime()
+            const end = (c.resolutionDate ? new Date(c.resolutionDate) : new Date(c.updatedAt || c.createdAt)).getTime()
+            const diffHours = Math.max(0.5, (end - start) / (1000 * 60 * 60))
+            totalHours += diffHours
+            if (diffHours <= 24) withinSlaCount++
+          })
+
+          historicalStats = {
+            count: similarResolved.length,
+            avgHours: Number((totalHours / similarResolved.length).toFixed(1)),
+            slaRate: Math.round((withinSlaCount / similarResolved.length) * 100)
+          }
+        }
+      } else if (inMemoryStore && Array.isArray(inMemoryStore.complaints)) {
+        const similarResolved = inMemoryStore.complaints.filter(
+          (c) => c.category === category && c.status === 'Resolved'
+        )
+        if (similarResolved.length > 0) {
+          let totalHours = 0
+          let withinSlaCount = 0
+
+          similarResolved.forEach((c) => {
+            const start = new Date(c.createdAt).getTime()
+            const end = (c.resolutionDate ? new Date(c.resolutionDate) : new Date(c.updatedAt || c.createdAt)).getTime()
+            const diffHours = Math.max(0.5, (end - start) / (1000 * 60 * 60))
+            totalHours += diffHours
+            if (diffHours <= 24) withinSlaCount++
+          })
+
+          historicalStats = {
+            count: similarResolved.length,
+            avgHours: Number((totalHours / similarResolved.length).toFixed(1)),
+            slaRate: Math.round((withinSlaCount / similarResolved.length) * 100)
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[AI] Historical data query warning:', dbErr.message)
+    }
+
+    const prediction = await predictComplaintResolution(
+      { title, description, category, location, department, priority, timeOfSubmission },
+      historicalStats
+    )
+
+    return res.json({ success: true, prediction })
+  } catch (error) {
+    console.error('Resolution prediction error:', error)
+    const fallback = {
+      expectedResolutionTime: 'Estimated: 6–12 hours',
+      slaSuccessProbability: 90,
+      escalationRisk: 'Low',
+      suggestedPriority: 'Medium',
+      recommendedDepartment: 'Maintenance',
+      confidenceScore: 82,
+      confidenceLevel: 'Medium',
+      aiExplanation: 'Prediction based on complaint category and general resolution patterns.',
+      recommendedAction: 'Assign this complaint to the relevant department coordinator for initial assessment.',
+      dataSource: 'general_patterns',
+      historicalCount: 0
+    }
+    return res.json({ success: true, prediction: fallback })
+  }
+})
 
 // ============ STUDENT COMPLAINT ROUTES ============
 

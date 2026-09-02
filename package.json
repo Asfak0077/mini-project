@@ -12,5 +12,8 @@
     "build:frontend": "npm --workspace frontend run build",
     "build:backend": "npm --workspace backend run build",
     "lint": "npm --workspaces run lint"
+  },
+  "dependencies": {
+    "framer-motion": "^13.1.1"
   }
 }

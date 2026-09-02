@@ -43,6 +43,25 @@ const complaintSchema = new mongoose.Schema(
         uploadedAt: { type: Date, default: Date.now }
       }
     ],
+    location: { type: String, default: '' },
+    // Affected Students & Community Upvotes (Duplicate Joining)
+    affectedUsers: [
+      {
+        studentId: { type: String, required: true },
+        studentName: { type: String, default: 'Student' },
+        studentEmail: { type: String, default: '' },
+        joinedAt: { type: Date, default: Date.now }
+      }
+    ],
+    affectedCount: { type: Number, default: 1 },
+    // AI Duplicate Detection Tracking
+    duplicateDetection: {
+      similarityScore: { type: Number, default: 0 },
+      matchedComplaintId: { type: String, default: '' },
+      duplicateType: { type: String, enum: ['NO_DUPLICATE', 'POSSIBLE_DUPLICATE', 'HIGH_CONFIDENCE_DUPLICATE', 'NONE'], default: 'NONE' },
+      detectionTimestamp: { type: Date, default: null },
+      userDecision: { type: String, enum: ['VIEWED', 'JOINED_EXISTING', 'CREATED_ANYWAY', 'CANCELLED', 'NONE'], default: 'NONE' }
+    },
     // Resolution tracking
     resolutionTimeline: [
       {

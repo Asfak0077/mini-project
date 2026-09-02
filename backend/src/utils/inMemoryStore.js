@@ -479,18 +479,33 @@ class InMemoryStore {
   }
 
   createFeedback(data) {
+    const comment = data.comment || data.feedbackText || ''
+    const overallRating = Number(data.overallRating || data.rating || 5)
     const newFeedback = {
       _id: `64f1f${Date.now().toString(16)}`,
       id: `64f1f${Date.now().toString(16)}`,
       complaintId: data.complaintId,
       studentName: data.studentName,
       studentId: data.studentId,
+      studentEmail: data.studentEmail || '',
       department: data.department,
       teacherId: data.teacherId,
       teacherName: data.teacherName,
-      rating: data.rating,
+      rating: overallRating,
+      overallRating: overallRating,
+      resolutionQuality: Number(data.resolutionQuality || 4),
+      responseTime: Number(data.responseTime || 4),
+      communication: Number(data.communication || 4),
+      staffSupport: Number(data.staffSupport || 4),
+      resolutionStatus: data.resolutionStatus || 'Yes, completely resolved',
+      unresolvedReason: data.unresolvedReason || '',
+      positiveTags: Array.isArray(data.positiveTags) ? data.positiveTags : [],
+      improvementTags: Array.isArray(data.improvementTags) ? data.improvementTags : [],
+      recommendationScore: typeof data.recommendationScore === 'number' ? data.recommendationScore : 10,
+      isAnonymous: Boolean(data.isAnonymous),
       category: data.category || 'General',
-      comment: data.comment || '',
+      comment: comment,
+      feedbackText: comment,
       createdAt: new Date().toISOString()
     }
     this.feedback.unshift(newFeedback)
@@ -498,13 +513,14 @@ class InMemoryStore {
     // Update complaint feedback
     const complaint = this.findComplaintById(data.complaintId)
     if (complaint) {
-      complaint.studentFeedback = data.comment
-      complaint.satisfactionRating = data.rating
+      complaint.studentFeedback = comment
+      complaint.satisfactionRating = overallRating
     }
 
     this._persist()
     return newFeedback
   }
+
 }
 
 const inMemoryStore = new InMemoryStore()

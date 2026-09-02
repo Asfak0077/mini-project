@@ -368,9 +368,10 @@ export const ActionSearchBar: React.FC = () => {
                           <div
                             className={`w-9 h-9 rounded-[12px] flex items-center justify-center shrink-0 border border-[var(--border)] transition-colors ${
                               isSelected
-                                ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827]'
+                                ? 'bg-slate-900 dark:bg-blue-600 text-white'
                                 : 'bg-[var(--surface-secondary)] text-[var(--text-muted)]'
                             }`}
+
                           >
                             <Icon className="w-4 h-4" />
                           </div>

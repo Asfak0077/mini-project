@@ -26,6 +26,7 @@ const emailLogSchema = new mongoose.Schema(
         'login_alert',
         'account_verification',
         'system_alert',
+        'notification',
         'other'
       ],
       default: 'other',

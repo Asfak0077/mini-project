@@ -369,9 +369,10 @@ const ProfileSettings = () => {
             {/* Profile Info Details */}
             <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-[#111827] text-white dark:bg-white dark:text-[#111827]">
+                <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-[#111827] text-white dark:bg-blue-600 dark:text-white">
                   {roleLabel}
                 </span>
+
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   <ShieldCheck className="w-3 h-3" /> Verified Identity
                 </span>

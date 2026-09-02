@@ -120,8 +120,8 @@
   --sidebar-bg:        rgba(16, 23, 34, 0.95);
   --input-bg:          #101722;
 
-  --primary:           #F8FAFC;
-  --primary-hover:     #60A5FA;
+  --primary:           #2563EB;
+  --primary-hover:     #1D4ED8;
   --primary-blue:      #3B82F6;
   --primary-blue-hover:#60A5FA;
   --primary-soft:      rgba(59, 130, 246, 0.2);
@@ -144,9 +144,10 @@
   --accent-green:      #34D399;
   --accent-hover:      #93C5FD;
   --accent-subtle:     rgba(96, 165, 250, 0.2);
-  --active-bg:         #F8FAFC;
-  --active-text:       #080C16;
+  --active-bg:         #2563EB;
+  --active-text:       #FFFFFF;
   --active-border:     transparent;
+
 
   --text-heading:      #FFFFFF;
   --text-body:         #E2E8F0;
@@ -540,12 +541,13 @@ input[type="radio"] {
   color: var(--primary);
 }
 
-/* ── Preserve crisp white text inside colored buttons ─────────────── */
-button.text-white, [class*="bg-blue"].text-white,
+/* ── Preserve crisp white text inside colored badges / components ─────────────── */
+[class*="bg-blue"].text-white,
 [class*="bg-indigo"].text-white, [class*="bg-emerald"].text-white,
 [class*="bg-rose"].text-white, [class*="bg-gradient"].text-white {
   color: #FFFFFF !important;
 }
+
 
 /* ── Focus Rings ────────────────────────────────────────────── */
 :focus-visible {

@@ -1,187 +1,953 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, Send, Mic, MicOff, Bot, User as UserIcon,
-  Maximize2, Minimize2, Sparkles, Star,
-  FileText, Search, Bell, Key, Clock, MessageSquare, Settings,
-  Smile, Paperclip, RefreshCw, HelpCircle, ArrowUpRight,
-  ShieldCheck, Check, CornerDownLeft, Sparkle
+  X, Send, Mic, MicOff, Bot,
+  Maximize2, Minimize2, Sparkles,
+  RefreshCw, RotateCcw, Copy, Check,
+  AlertCircle, ChevronRight, Edit3, ArrowDown, Star, Lock, LogIn
 } from 'lucide-react'
-import { sendChatMessage, ChatMessage, enhanceFeedbackText, fetchUserContext } from '../../services/chatbotService'
-import { useAuthStore } from '../../store/authStore'
-import { useThemeStore } from '../../store/themeStore'
-import { useLocation } from 'react-router-dom'
-import { UserAvatar } from '../ui/Avatar'
 
+import {
+  sendChatMessage,
+  createComplaintFromChat,
+  joinComplaintFromChat,
+  submitFeedbackFromChat,
+  fetchEligibleResolvedComplaints,
+  ChatMessage,
+  ConversationState,
+  StructuredComplaint,
+  StructuredFeedback,
+  DuplicateMatch,
+  EligibleResolvedComplaint,
+  enhanceFeedbackText,
+  ChatHistoryItem
+} from '../../services/chatbotService'
+import { useAuthStore } from '../../store/authStore'
+import { useNavigate } from 'react-router-dom'
+import { UserAvatar } from '../ui/Avatar'
 import { ChatMessageContent } from './ChatMessageContent'
 
-/* ─── Smart Prompt Chips ────────────────────────────────────────────────── */
-const SMART_PROMPT_CARDS = [
-  { label: 'Submit Complaint', desc: 'Guide to file a complaint', icon: FileText, msg: 'How do I submit a new campus complaint?' },
-  { label: 'Track Resolution', desc: 'Check SLA & stages', icon: Clock, msg: 'How do I track my submitted complaint status?' },
-  { label: 'Submit Feedback', desc: 'Rate completed work', icon: Star, msg: 'How do I submit feedback for a resolved issue?' },
-  { label: 'Campus Policies', desc: 'SLA & escalation rules', icon: ShieldCheck, msg: 'What are the grievance resolution timeframes?' },
+/* ─── Suggested Prompts for Empty Chat ─────────────────────────────────── */
+const GUEST_SUGGESTED_PROMPTS = [
+  {
+    title: 'How to Submit a Complaint',
+    desc: 'Learn how grievances are filed & routed',
+    action: { type: 'SEND_TEXT' as const, text: 'How to Submit a Complaint' }
+  },
+  {
+    title: 'How Complaint Tracking Works',
+    desc: 'Understand ticket lifecycle and resolution',
+    action: { type: 'SEND_TEXT' as const, text: 'How Complaint Tracking Works' }
+  },
+  {
+    title: 'Feedback Information',
+    desc: 'How service ratings & faculty reviews work',
+    action: { type: 'SEND_TEXT' as const, text: 'Feedback Information' }
+  },
+  {
+    title: 'Login Help',
+    desc: 'How to sign in with student or faculty ID',
+    action: { type: 'SEND_TEXT' as const, text: 'Login Help' }
+  }
 ]
 
-/* ─── Page Context ──────────────────────────────────────────────────────── */
-const PAGE_CONTEXT: Record<string, { greeting: string; quickActions: string[] }> = {
-  '/student/feedback': {
-    greeting: '📝 You are on the **Feedback Portal**. Need help writing a constructive evaluation?',
-    quickActions: ['Help Write Comment', 'Rate Faculty Response', 'Enhance Text'],
+const AUTH_STUDENT_SUGGESTED_PROMPTS = [
+  {
+    title: 'Help Me Create a Complaint',
+    desc: 'Describe an issue and AI will draft it',
+    action: { type: 'OPEN_COMPLAINT_FLOW' as const }
   },
-  '/student/history': {
-    greeting: '📋 You are viewing **Complaint History**. I can help check resolution timelines.',
-    quickActions: ['Track Complaint', 'Explain Complaint Status', 'Give Feedback'],
+  {
+    title: 'Show My Pending Complaints',
+    desc: 'View all active unresolved tickets',
+    action: { type: 'SHOW_PENDING_COMPLAINTS' as const }
   },
-  '/admin/analytics': {
-    greeting: '📊 You are on the **Analytics Dashboard**. Ask for department benchmark reports.',
-    quickActions: ['Feedback Report', 'Department Workload', 'SLA Adherence'],
+  {
+    title: 'Check Complaint Status',
+    desc: 'Look up progress on your submitted tickets',
+    action: { type: 'SHOW_COMPLAINT_STATUS' as const }
   },
-  '/admin/teachers': {
-    greeting: '👩‍🏫 You are managing **Faculty**. I can analyze department capacity.',
-    quickActions: ['Workload Metrics', 'Assign Department', 'Performance Report'],
-  },
-  '/teacher': {
-    greeting: '🎓 Welcome, Faculty! I can help draft resolution remarks or update ticket stages.',
-    quickActions: ['View Assigned', 'Draft Resolution Note', 'Update Status'],
-  },
-  '/admin': {
-    greeting: '🛡️ Welcome, Admin! Real-time campus infrastructure data is connected.',
-    quickActions: ['Show Summary', 'Feedback Report', 'Department Stats'],
-  },
-  '/': {
-    greeting: '🌟 Welcome to **CampusResolve**! How can I assist you today?',
-    quickActions: ['Submit Complaint', 'Track Status', 'Security Overview'],
-  },
-}
-
-/* ─── Session Memory ────────────────────────────────────────────────────── */
-const MEMORY_KEY = 'cr_chat_memory'
-const loadMemory = (): string[] => {
-  try { return JSON.parse(sessionStorage.getItem(MEMORY_KEY) || '[]') } catch { return [] }
-}
-const saveMemory = (msgs: string[]) => {
-  sessionStorage.setItem(MEMORY_KEY, JSON.stringify(msgs.slice(-5)))
-}
+  {
+    title: '⭐ Give Feedback',
+    desc: 'Rate and evaluate resolved complaints',
+    action: { type: 'OPEN_FEEDBACK_FLOW' as const }
+  }
+]
 
 const FRUSTRATED_RE = /urgent|ignored|no response|not resolved|worst|still pending|nobody|please fix|so frustrated|very frustrated|help me now/i
 
-export const ChatAssistant = () => {
+/**
+ * Generate a unique ID with random entropy
+ */
+const generateUniqueId = (prefix: string = 'msg') => {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+}
+
+export type ChatAction =
+  | { type: 'OPEN_FEEDBACK_FLOW' }
+  | { type: 'SELECT_FEEDBACK_COMPLAINT'; complaint: EligibleResolvedComplaint }
+  | { type: 'EDIT_FEEDBACK'; feedback: StructuredFeedback }
+  | { type: 'USE_AI_FEEDBACK'; feedback: StructuredFeedback }
+  | { type: 'SUBMIT_FEEDBACK'; feedback: StructuredFeedback }
+  | { type: 'CANCEL_FEEDBACK' }
+  | { type: 'OPEN_COMPLAINT_FLOW' }
+  | { type: 'CREATE_COMPLAINT'; draft: StructuredComplaint }
+  | { type: 'CREATE_ANYWAY'; draft: StructuredComplaint }
+  | { type: 'JOIN_EXISTING_COMPLAINT'; complaintId: string }
+  | { type: 'VIEW_EXISTING_COMPLAINT'; complaintId: string }
+  | { type: 'EDIT_COMPLAINT'; draft: StructuredComplaint }
+  | { type: 'CANCEL_COMPLAINT' }
+  | { type: 'SHOW_PENDING_COMPLAINTS' }
+  | { type: 'SHOW_COMPLAINT_STATUS' }
+  | { type: 'SHOW_CAMPUS_STATS' }
+  | { type: 'SHOW_FEEDBACK_REPORT' }
+  | { type: 'VIEW_COMPLAINT_HISTORY'; complaintId: string }
+  | { type: 'SEND_TEXT'; text: string }
+
+export const ChatAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [sessionId, setSessionId] = useState<string | undefined>()
+  const [conversationState, setConversationState] = useState<ConversationState>('IDLE')
+  const [complaintDraft, setComplaintDraft] = useState<StructuredComplaint | null>(null)
+  const [feedbackDraft, setFeedbackDraft] = useState<StructuredFeedback | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [isEnhancing, setIsEnhancing] = useState(false)
-  const [userContext, setUserContext] = useState<any>(null)
-  const [memory, setMemory] = useState<string[]>(loadMemory)
-  const [isUrgentMode, setIsUrgentMode] = useState(false)
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
+  const [lastErrorPrompt, setLastErrorPrompt] = useState<string | null>(null)
+  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false)
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+  const [isJoiningComplaint, setIsJoiningComplaint] = useState(false)
+
+  // Edit Complaint Modal State
+  const [editingDraft, setEditingDraft] = useState<StructuredComplaint | null>(null)
+  const [editForm, setEditForm] = useState<{
+    title: string
+    category: string
+    department: string
+    location: string
+    priority: 'low' | 'medium' | 'high' | 'Urgent'
+    description: string
+  }>({
+    title: '',
+    category: 'Infrastructure',
+    department: 'CSE',
+    location: '',
+    priority: 'medium',
+    description: ''
+  })
+
+  // Edit Feedback Modal State
+  const [editingFeedback, setEditingFeedback] = useState<StructuredFeedback | null>(null)
+  const [feedbackEditForm, setFeedbackEditForm] = useState<{
+    complaintId: string
+    complaintTitle: string
+    rating: number
+    comment: string
+    category: string
+  }>({
+    complaintId: '',
+    complaintTitle: '',
+    rating: 5,
+    comment: '',
+    category: 'Resolution Satisfaction'
+  })
 
   const user = useAuthStore((s) => s.user)
+  const token = useAuthStore((s) => s.token)
   const role = useAuthStore((s) => s.role)
-  const { isDarkMode } = useThemeStore()
-  const location = useLocation()
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  const isAuthenticated = Boolean(user && token)
+  const navigate = useNavigate()
+
+  // ─── REFS FOR PREVENTING DUPLICATION & RACE CONDITIONS ──────────────────────
+  const processedMessageIdsRef = useRef<Set<string>>(new Set())
+  const processedRequestIdsRef = useRef<Set<string>>(new Set())
+  const processedAnalysisIdsRef = useRef<Set<string>>(new Set())
+  const isRequestPendingRef = useRef<boolean>(false)
+  const prevAuthUserIdRef = useRef<string | null>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const isUserNearBottomRef = useRef<boolean>(true)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const recognitionRef = useRef<any>(null)
 
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+
+  // Helper to add a message once and deduplicate by ID
+  const appendMessageSafely = useCallback((msg: ChatMessage) => {
+    if (processedMessageIdsRef.current.has(msg.id)) {
+      return
+    }
+    processedMessageIdsRef.current.add(msg.id)
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev
+      return [...prev, msg]
+    })
+  }, [])
+
+  // Initialize Speech Recognition
   useEffect(() => {
     if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = false
-      recognitionRef.current.interimResults = false
-      recognitionRef.current.onresult = (e: any) => {
-        setInputValue(e.results[0][0].transcript)
-        setIsListening(false)
+      try {
+        recognitionRef.current = new SpeechRecognition()
+        recognitionRef.current.continuous = false
+        recognitionRef.current.interimResults = false
+        recognitionRef.current.onresult = (e: any) => {
+          const transcript = e.results[0][0].transcript
+          setInputValue(transcript)
+          setIsListening(false)
+        }
+        recognitionRef.current.onerror = () => setIsListening(false)
+        recognitionRef.current.onend = () => setIsListening(false)
+      } catch {
+        // speech recognition not supported
       }
-      recognitionRef.current.onerror = () => setIsListening(false)
-      recognitionRef.current.onend = () => setIsListening(false)
     }
   }, [SpeechRecognition])
 
+  // Authentication-Aware Chat State Lifecycle
   useEffect(() => {
-    if (!user || !role) return
-    const userId = user.studentId || user.teacherId || user.email || ''
-    if (!userId) return
-    fetchUserContext(userId, role).then(ctx => {
-      setUserContext(ctx)
-    }).catch(() => {})
-  }, [user, role])
+    const currentUserId = isAuthenticated ? (user?.studentId || user?.teacherId || user?.email || (user as any)?._id || 'AUTH_USER') : 'GUEST'
 
-  useEffect(() => {
-    const pageCtx = PAGE_CONTEXT[location.pathname] || PAGE_CONTEXT['/']
-    const firstName = user?.name?.split(' ')[0] || 'there'
-    let welcomeText = `👋 Hi **${firstName}**! Welcome to **CampusResolve AI**.\nHow can I help you resolve or track your campus complaints today?\n\n${pageCtx.greeting}`
+    if (prevAuthUserIdRef.current !== currentUserId) {
+      prevAuthUserIdRef.current = currentUserId
+      processedMessageIdsRef.current.clear()
+      processedRequestIdsRef.current.clear()
+      processedAnalysisIdsRef.current.clear()
+      setSessionId(undefined)
 
-    if (userContext && role === 'student') {
-      const { total, pending, inProgress, resolved } = userContext
-      welcomeText = `👋 Hi **${firstName}**!\n\n📌 **Complaints:** ${total}  |  ⏳ **Pending:** ${pending}  |  🔄 **In Progress:** ${inProgress}  |  ✅ **Resolved:** ${resolved}\n\n${pageCtx.greeting}`
-    } else if (userContext && role === 'admin') {
-      welcomeText = `👋 Hi **Admin**!\nCampus live metrics:\n\n📌 **Total:** ${userContext.total}  |  ✅ **Resolved:** ${userContext.resolved}  |  ⏳ **Pending:** ${userContext.pending}\n\n${pageCtx.greeting}`
-    } else if (userContext && role === 'teacher') {
-      welcomeText = `👋 Hi **Faculty**!\nYour assignments:\n\n📋 **Active:** ${userContext.assigned}  |  ✅ **Resolved:** ${userContext.resolved}\n\n${pageCtx.greeting}`
-    }
+      if (isAuthenticated && user) {
+        // Authenticated Welcome
+        const firstName = user?.name?.split(' ')[0] || 'there'
+        let welcomeText = `Hi ${firstName}! I'm your **CampusResolve AI Assistant**.\nI can help you create complaints, submit feedback on resolved issues, check statuses, and search history.`
+        let qa = ['Help Me Create a Complaint', 'Show My Pending Complaints', 'Check Complaint Status', 'Show My Complaint History', '⭐ Give Feedback']
 
-    setMessages([{ id: 'welcome', text: welcomeText, sender: 'bot', timestamp: new Date(), quickActions: pageCtx.quickActions }])
-  }, [location.pathname, userContext, role])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isTyping, isOpen])
-
-  const handleSend = async (text: string) => {
-    if (!text.trim()) return
-    const isUrgent = FRUSTRATED_RE.test(text)
-    if (isUrgent) setIsUrgentMode(true)
-
-    const userMsg: ChatMessage = {
-      id: `u-${Date.now()}`,
-      text: text.trim(),
-      sender: 'user',
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMsg])
-    setInputValue('')
-    setIsTyping(true)
-
-    // Save prompt into memory
-    const updatedMemory = [...memory, text.trim()]
-    setMemory(updatedMemory)
-    saveMemory(updatedMemory)
-
-    try {
-      const userId = user?.studentId || user?.teacherId || user?.email || user?.id || ''
-      const res = await sendChatMessage(text.trim(), sessionId, userId, role ?? 'student', 'en', isUrgent)
-
-      if (res?.sessionId) setSessionId(res.sessionId)
-
-      const botMsg: ChatMessage = {
-        id: `b-${Date.now()}`,
-        text: res?.text || "I'm here to assist you. Let me know what you'd like to check.",
-        sender: 'bot',
-        timestamp: new Date(),
-        quickActions: res?.quickActions
-      }
-
-      setMessages(prev => [...prev, botMsg])
-    } catch {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          text: "I'm having a brief connection pause with the AI cluster. Please retry your question or navigate to the relevant portal tab.",
-          sender: 'bot',
-          timestamp: new Date()
+        if (role === 'admin') {
+          welcomeText = `Hi **Admin**! 🛡️ Real-time campus infrastructure data is connected. Ask for statistics, departmental workloads, or feedback analytics.`
+          qa = ['Campus Statistics', 'Feedback Report', 'Escalations']
+        } else if (role === 'teacher') {
+          welcomeText = `Hi **Faculty**! 🎓 I can help manage your assigned complaints, generate resolution templates, or review student feedback.`
+          qa = ['View Assigned Complaints', 'Resolution Templates', 'Student Feedback Analytics']
         }
-      ])
-    } finally {
-      setIsTyping(false)
+
+        setMessages([
+          {
+            id: `welcome-${Date.now()}`,
+            messageType: 'AI_TEXT',
+            text: welcomeText,
+            sender: 'bot',
+            timestamp: new Date(),
+            quickActions: qa
+          }
+        ])
+      } else {
+        // Guest Welcome
+        setMessages([
+          {
+            id: `guest-welcome-${Date.now()}`,
+            messageType: 'AI_TEXT',
+            text: `Welcome to CampusResolve! 🏛️ I'm your **Public Campus Assistant**.\n\nI can answer general questions about filing grievances, resolution workflows, feedback policies, and login support.\n\n🔒 *Please sign in to access your personal complaints, status tracking, and feedback history.*`,
+            sender: 'bot',
+            timestamp: new Date(),
+            quickActions: ['How to Submit a Complaint', 'How Complaint Tracking Works', 'Feedback Information', 'Login Help']
+          }
+        ])
+      }
+    }
+  }, [isAuthenticated, user, role])
+
+  // Scroll Container Listener
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight
+    const isNear = distanceToBottom < 100
+    isUserNearBottomRef.current = isNear
+  }
+
+
+  // Scroll to bottom smoothly
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior
+      })
     }
   }
 
+  // Auto-scroll when messages update if user is near bottom
+  useEffect(() => {
+    if (isUserNearBottomRef.current) {
+      scrollToBottom('smooth')
+    }
+  }, [messages, isTyping])
+
+  // Auto-resize textarea
+  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
+    }
+  }
+
+  // ─── SEND MESSAGE HANDLER (DEDUPLICATED & THREAD-SAFE) ──────────────────────
+  const handleSend = async (textToSend: string, actionType?: string | null) => {
+    const prompt = textToSend.trim()
+    if (!prompt && !actionType) return
+
+    // Prevent duplicate simultaneous requests
+    if (isRequestPendingRef.current) {
+      return
+    }
+
+    isRequestPendingRef.current = true
+    setIsTyping(true)
+    setLastErrorPrompt(null)
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+
+    // Add user message with unique ID immediately (only for text messages, not structured actions)
+    if (prompt && !actionType) {
+      const userMsgId = generateUniqueId('u')
+      const userMsg: ChatMessage = {
+        id: userMsgId,
+        messageType: 'USER_TEXT',
+        text: prompt,
+        sender: 'user',
+        timestamp: new Date()
+      }
+      appendMessageSafely(userMsg)
+    }
+    setInputValue('')
+
+    // Get previous assistant message for context
+    const lastBotMsg = [...messages].reverse().find((m) => m.sender === 'bot')
+    const previousAssistantMessage = lastBotMsg?.text || ''
+
+    // Send API request with unique request ID
+    const requestId = generateUniqueId('req')
+    const historyPayload: ChatHistoryItem[] = messages.slice(-8).map((m) => ({
+      sender: m.sender,
+      text: m.text
+    }))
+
+    try {
+      const res = await sendChatMessage({
+        message: prompt || '',
+        sessionId,
+        conversationState,
+        complaintDraft,
+        feedbackDraft,
+        history: historyPayload,
+        actionType: actionType || null,
+        requestId,
+        previousAssistantMessage
+      })
+
+      // Verify request was not already processed
+      if (processedRequestIdsRef.current.has(requestId)) {
+        return
+      }
+      processedRequestIdsRef.current.add(requestId)
+
+      if (res?.sessionId) setSessionId(res.sessionId)
+      if (res?.state) setConversationState(res.state)
+      if (res?.complaintDraft !== undefined) setComplaintDraft(res.complaintDraft)
+      if (res?.feedbackDraft !== undefined) setFeedbackDraft(res.feedbackDraft)
+      if (res?.structuredComplaint) setComplaintDraft(res.structuredComplaint)
+
+      const botMsgId = generateUniqueId('b')
+      const botMsg: ChatMessage = {
+        id: botMsgId,
+        messageType: res?.messageType || (res?.structuredFeedback ? 'FEEDBACK_ANALYSIS' : (res?.structuredComplaint ? 'COMPLAINT_PREVIEW' : 'AI_TEXT')),
+        text: res?.text || "I'm here to assist you.",
+        sender: 'bot',
+        timestamp: new Date(),
+        quickActions: res?.quickActions,
+        structuredComplaint: res?.structuredComplaint,
+        structuredFeedback: res?.structuredFeedback,
+        duplicateMatches: res?.duplicateMatches,
+        queryResults: res?.queryResults,
+        eligibleComplaints: res?.eligibleComplaints,
+        ragSources: res?.ragSources,
+        widgetData: res?.widgetData
+      }
+
+      appendMessageSafely(botMsg)
+    } catch {
+      setLastErrorPrompt(prompt)
+      const errorMsgId = generateUniqueId('err')
+      const errorMsg: ChatMessage = {
+        id: errorMsgId,
+        messageType: 'ERROR_MESSAGE',
+        text: "Sorry, I couldn't process that request. Please try again.",
+        sender: 'bot',
+        timestamp: new Date()
+      }
+      appendMessageSafely(errorMsg)
+    } finally {
+      setIsTyping(false)
+      isRequestPendingRef.current = false
+    }
+  }
+
+  // ─── DEDICATED ACTION HANDLER (SEPARATED FROM NORMAL CHAT) ──────────────────
+  const handleAction = async (action: ChatAction) => {
+    // ── GUEST MODE PROTECTION CHECK ──
+    const protectedActions = ['OPEN_FEEDBACK_FLOW', 'SELECT_FEEDBACK_COMPLAINT', 'OPEN_COMPLAINT_FLOW', 'CREATE_COMPLAINT', 'SHOW_PENDING_COMPLAINTS', 'SHOW_COMPLAINT_STATUS', 'VIEW_COMPLAINT_HISTORY']
+    if (!isAuthenticated && protectedActions.includes(action.type)) {
+      const botMsg: ChatMessage = {
+        id: generateUniqueId('b-auth-req'),
+        messageType: 'AI_TEXT',
+        text: "Please sign in to securely access your personal complaints, complaint status, and feedback history.",
+        sender: 'bot',
+        timestamp: new Date(),
+        quickActions: ['Sign In to Continue', 'How to Submit a Complaint', 'How Complaint Tracking Works', 'Feedback Information', 'Login Help'],
+        widgetData: {
+          type: 'AUTH_REQUIRED',
+          ctaText: 'Sign In to Continue',
+          target: '/login'
+        }
+      }
+      appendMessageSafely(botMsg)
+      return
+    }
+
+    switch (action.type) {
+      case 'OPEN_FEEDBACK_FLOW': {
+        setIsTyping(true)
+        try {
+          const res = await fetchEligibleResolvedComplaints()
+          const botMsgId = generateUniqueId('b-elig')
+          if (res.complaints && res.complaints.length > 0) {
+            const unreviewed = res.complaints.filter(c => !c.hasFeedback)
+            const listToShow = unreviewed.length > 0 ? unreviewed : res.complaints
+
+            const botMsg: ChatMessage = {
+              id: botMsgId,
+              messageType: 'FEEDBACK_SELECTOR',
+              text: `Here are your resolved complaints eligible for feedback. Select an issue to evaluate:`,
+              sender: 'bot',
+              timestamp: new Date(),
+              eligibleComplaints: listToShow,
+              quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints']
+            }
+            appendMessageSafely(botMsg)
+          } else {
+            const botMsg: ChatMessage = {
+              id: botMsgId,
+              messageType: 'AI_TEXT',
+              text: `You currently have no resolved complaints needing feedback. Feedback can only be submitted after an issue has been resolved by faculty.`,
+              sender: 'bot',
+              timestamp: new Date(),
+              quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints']
+            }
+            appendMessageSafely(botMsg)
+          }
+        } catch {
+          // fallback
+        } finally {
+          setIsTyping(false)
+        }
+        break
+      }
+
+
+      case 'SELECT_FEEDBACK_COMPLAINT': {
+        const { complaint } = action
+        const analysisKey = `analysis-${complaint.complaintId}`
+        if (processedAnalysisIdsRef.current.has(analysisKey)) {
+          return
+        }
+        processedAnalysisIdsRef.current.add(analysisKey)
+
+        setIsTyping(true)
+        try {
+          const feedbackPrompt = `I want to give feedback for complaint ${complaint.complaintId}: "${complaint.title}" in ${complaint.department} department.`
+          const userId = user?.studentId || user?.teacherId || user?.email || user?.id || ''
+
+          const res = await sendChatMessage(
+            feedbackPrompt,
+            sessionId,
+            userId,
+            role ?? 'student',
+            'en',
+            false,
+            []
+          )
+
+          if (res?.sessionId) setSessionId(res.sessionId)
+
+          const analysisCardMsg: ChatMessage = {
+            id: generateUniqueId('b-fb-card'),
+            messageType: 'FEEDBACK_ANALYSIS',
+            text: res?.text || `### Feedback Summary\nHere is your feedback analysis for **${complaint.complaintId}** (*${complaint.title}*):`,
+            sender: 'bot',
+            timestamp: new Date(),
+            structuredFeedback: res?.structuredFeedback || {
+              complaintId: complaint.complaintId,
+              complaintTitle: complaint.title,
+              department: complaint.department,
+              teacherId: complaint.assignedTeacherId || 'TCH-CSE-001',
+              teacherName: complaint.assignedTeacherName || 'Faculty',
+              sentiment: 'Neutral',
+              resolutionQuality: 'Satisfactory',
+              responseTime: 'Moderate',
+              communication: 'Moderate',
+              suggestedRating: 3,
+              topics: ['Resolution Quality', 'Response Time', 'Communication'],
+              summary: `Feedback recorded for ${complaint.title}.`,
+              suggestedFeedback: 'The complaint management process was handled adequately. Overall, the resolution was satisfactory, although communication and response time could be improved.',
+              originalComment: '',
+              suggestedFollowUp: ''
+            }
+          }
+          appendMessageSafely(analysisCardMsg)
+        } catch {
+          // fallback
+        } finally {
+          setIsTyping(false)
+        }
+        break
+      }
+
+      case 'EDIT_FEEDBACK': {
+        setEditingFeedback(action.feedback)
+        setFeedbackEditForm({
+          complaintId: action.feedback.complaintId,
+          complaintTitle: action.feedback.complaintTitle,
+          rating: action.feedback.suggestedRating || 5,
+          comment: action.feedback.suggestedFeedback || action.feedback.originalComment || '',
+          category: 'Resolution Satisfaction'
+        })
+        // DO NOT CALL GEMINI. DO NOT CREATE ANY CHAT MESSAGE.
+        break
+      }
+
+      case 'CANCEL_FEEDBACK': {
+        setEditingFeedback(null)
+        setFeedbackDraft(null)
+        setConversationState('IDLE')
+        const cancelMsg: ChatMessage = {
+          id: generateUniqueId('b-cancel-fb'),
+          messageType: 'AI_TEXT',
+          text: "Feedback process cancelled. No feedback was saved. How else can I help you today?",
+          sender: 'bot',
+          timestamp: new Date(),
+          quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', '⭐ Give Feedback']
+        }
+        appendMessageSafely(cancelMsg)
+        break
+      }
+
+      case 'USE_AI_FEEDBACK':
+      case 'SUBMIT_FEEDBACK': {
+        setIsSubmittingFeedback(true)
+        try {
+          await submitFeedbackFromChat({
+            complaintId: action.feedback.complaintId,
+            rating: action.feedback.suggestedRating || 5,
+            comment: action.feedback.suggestedFeedback || action.feedback.originalComment || '',
+            category: 'Resolution Satisfaction',
+            aiAnalysis: {
+              sentiment: action.feedback.sentiment,
+              resolutionQuality: action.feedback.resolutionQuality,
+              responseTime: action.feedback.responseTime,
+              communication: action.feedback.communication,
+              topics: action.feedback.topics,
+              summary: action.feedback.summary,
+              suggestedFollowUp: action.feedback.suggestedFollowUp
+            }
+          })
+
+          setFeedbackDraft(null)
+          setConversationState('IDLE')
+
+          const successMsg: ChatMessage = {
+            id: generateUniqueId('b-fb-success'),
+            messageType: 'SUCCESS',
+            text: `✓ **Feedback for ${action.feedback.complaintId} submitted successfully!**\n\nThank you for helping CampusResolve improve. Your rating (**${action.feedback.suggestedRating}/5 ⭐**) and review have been registered.`,
+            sender: 'bot',
+            timestamp: new Date(),
+            quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', 'Campus Statistics']
+          }
+          appendMessageSafely(successMsg)
+        } catch (err: any) {
+          const errMsg: ChatMessage = {
+            id: generateUniqueId('b-fb-err'),
+            messageType: 'SYSTEM',
+            text: `❌ ${err.response?.data?.message || 'Feedback could not be submitted. It may have already been recorded.'}`,
+            sender: 'bot',
+            timestamp: new Date()
+          }
+          appendMessageSafely(errMsg)
+        } finally {
+          setIsSubmittingFeedback(false)
+        }
+        break
+      }
+
+      case 'OPEN_COMPLAINT_FLOW': {
+        setConversationState('COMPLAINT_COLLECTION')
+        const botMsg: ChatMessage = {
+          id: generateUniqueId('b-comp-flow'),
+          messageType: 'AI_TEXT',
+          text: "Please describe the issue you are facing on campus (including the building, lab, or room number), and I will draft a formal grievance for you.",
+          sender: 'bot',
+          timestamp: new Date(),
+          quickActions: ['Seminar Hall projector flickering', 'Computer Lab 3 AC not working', 'Hostel Mess water issue', 'Cancel']
+        }
+        appendMessageSafely(botMsg)
+        break
+      }
+
+      case 'CREATE_COMPLAINT': {
+        setIsSubmittingDraft(true)
+        try {
+          const res = await createComplaintFromChat({
+            title: action.draft.title,
+            category: action.draft.category,
+            department: action.draft.department || user?.department || 'CSE',
+            location: action.draft.location || '',
+            priority: action.draft.priority || 'medium',
+            description: action.draft.description
+          })
+
+          setComplaintDraft(null)
+          setConversationState('IDLE')
+
+          const createdId = res.complaint?.complaintId || 'Registered'
+          const successMsg: ChatMessage = {
+            id: generateUniqueId('b-created'),
+            messageType: 'SUCCESS',
+            text: `✓ **Complaint ${createdId} Registered Successfully!**\n\nYour grievance has been forwarded to the **${res.complaint?.department || 'department'}** team.\nYou can track its progress anytime using the Complaint ID or from your Complaint History.`,
+            sender: 'bot',
+            timestamp: new Date(),
+            quickActions: [`Status of ${createdId}`, 'Show My Pending Complaints', 'Help Me Create a Complaint'],
+            queryResults: res.complaint ? [res.complaint] : null
+          }
+          appendMessageSafely(successMsg)
+        } catch (err: any) {
+          const errMsg: ChatMessage = {
+            id: generateUniqueId('b-err-create'),
+            messageType: 'SYSTEM',
+            text: `❌ Could not create complaint: ${err.response?.data?.message || 'Please check your connection and try again.'}`,
+            sender: 'bot',
+            timestamp: new Date()
+          }
+          appendMessageSafely(errMsg)
+        } finally {
+          setIsSubmittingDraft(false)
+        }
+        break
+      }
+
+      case 'CREATE_ANYWAY': {
+        setIsSubmittingDraft(true)
+        try {
+          const res = await createComplaintFromChat({
+            title: action.draft.title,
+            category: action.draft.category,
+            department: action.draft.department || user?.department || 'CSE',
+            location: action.draft.location || '',
+            priority: action.draft.priority || 'medium',
+            description: action.draft.description,
+            duplicateDecision: 'CREATED_ANYWAY'
+          })
+
+          setComplaintDraft(null)
+          setConversationState('IDLE')
+
+          const createdId = res.complaint?.complaintId || 'Registered'
+          const successMsg: ChatMessage = {
+            id: generateUniqueId('b-created'),
+            messageType: 'SUCCESS',
+            text: `✓ **Complaint ${createdId} Registered Successfully (Created Anyway)!**\n\nYour grievance has been forwarded to the **${res.complaint?.department || 'department'}** team.\nYou can track its progress anytime using the Complaint ID or from your Complaint History.`,
+            sender: 'bot',
+            timestamp: new Date(),
+            quickActions: [`Status of ${createdId}`, 'Show My Pending Complaints', 'Help Me Create a Complaint'],
+            queryResults: res.complaint ? [res.complaint] : null
+          }
+          appendMessageSafely(successMsg)
+        } catch (err: any) {
+          const errMsg: ChatMessage = {
+            id: generateUniqueId('b-err-create'),
+            messageType: 'SYSTEM',
+            text: `❌ Could not create complaint: ${err.response?.data?.message || 'Please check your connection and try again.'}`,
+            sender: 'bot',
+            timestamp: new Date()
+          }
+          appendMessageSafely(errMsg)
+        } finally {
+          setIsSubmittingDraft(false)
+        }
+        break
+      }
+
+      case 'JOIN_EXISTING_COMPLAINT': {
+        setIsJoiningComplaint(true)
+        setIsTyping(true)
+        try {
+          const res = await joinComplaintFromChat(action.complaintId)
+          if (res.success) {
+            const text = res.alreadyJoined
+              ? `You are already recorded as an affected student for **${action.complaintId}** (*${res.title}*). Total affected students: **${res.affectedCount}**.`
+              : `✓ **Added as an Affected Student to ${action.complaintId}!**\n\nYour report has been linked to **${action.complaintId}** (*${res.title}*). The ticket priority has been updated with **${res.affectedCount} affected students**.`
+
+            const successMsg: ChatMessage = {
+              id: generateUniqueId('b-join-success'),
+              messageType: 'SUCCESS',
+              text,
+              sender: 'bot',
+              timestamp: new Date(),
+              quickActions: [`Status of ${action.complaintId}`, 'Help Me Create a Complaint', 'Show My Pending Complaints']
+            }
+            appendMessageSafely(successMsg)
+          } else {
+            const errMsg: ChatMessage = {
+              id: generateUniqueId('b-err-join'),
+              messageType: 'SYSTEM',
+              text: `❌ Could not join complaint: ${res.message || 'Please try again.'}`,
+              sender: 'bot',
+              timestamp: new Date()
+            }
+            appendMessageSafely(errMsg)
+          }
+        } catch (err: any) {
+          const errMsg: ChatMessage = {
+            id: generateUniqueId('b-err-join'),
+            messageType: 'SYSTEM',
+            text: `❌ Could not join complaint: ${err.response?.data?.message || 'Please try again.'}`,
+            sender: 'bot',
+            timestamp: new Date()
+          }
+          appendMessageSafely(errMsg)
+        } finally {
+          setIsJoiningComplaint(false)
+          setIsTyping(false)
+        }
+        break
+      }
+
+      case 'VIEW_EXISTING_COMPLAINT': {
+        handleSend(`Status of ${action.complaintId}`)
+        break
+      }
+
+      case 'EDIT_COMPLAINT': {
+        setEditingDraft(action.draft)
+        setEditForm({
+          title: action.draft.title || '',
+          category: action.draft.category || 'Infrastructure',
+          department: action.draft.department || user?.department || 'CSE',
+          location: action.draft.location || '',
+          priority: action.draft.priority || 'medium',
+          description: action.draft.description || ''
+        })
+        break
+      }
+
+      case 'CANCEL_COMPLAINT': {
+        setEditingDraft(null)
+        setComplaintDraft(null)
+        setConversationState('IDLE')
+        const cancelMsg: ChatMessage = {
+          id: generateUniqueId('b-cancel-comp'),
+          messageType: 'AI_TEXT',
+          text: "Complaint creation cancelled. How else can I help you today?",
+          sender: 'bot',
+          timestamp: new Date(),
+          quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', '⭐ Give Feedback']
+        }
+        appendMessageSafely(cancelMsg)
+        break
+      }
+
+      case 'SHOW_PENDING_COMPLAINTS': {
+        handleSend('Show my pending complaints')
+        break
+      }
+
+      case 'SHOW_COMPLAINT_STATUS': {
+        handleSend('What is the status of my complaint?')
+        break
+      }
+
+      case 'SHOW_CAMPUS_STATS': {
+        handleSend('Show campus statistics')
+        break
+      }
+
+      case 'SHOW_FEEDBACK_REPORT': {
+        handleSend('Show feedback report')
+        break
+      }
+
+      case 'VIEW_COMPLAINT_HISTORY': {
+        handleSelectComplaintId(action.complaintId)
+        break
+      }
+
+      case 'SEND_TEXT': {
+        handleSend(action.text)
+        break
+      }
+    }
+  }
+
+  // ─── QUICK ACTION CHIP CLICK HANDLER (DISPATCHES STRUCTURED ACTIONS) ────────
+  const handleQuickActionClick = (act: string) => {
+    // Prevent clicks while processing
+    if (isRequestPendingRef.current) return
+
+    if (/^sign in( to continue)?$/i.test(act)) {
+      navigate('/login')
+    } else if (/^(⭐?\s*give feedback|rate complaint)$/i.test(act)) {
+      handleAction({ type: 'OPEN_FEEDBACK_FLOW' })
+    } else if (/^help me create a complaint$/i.test(act)) {
+      handleAction({ type: 'OPEN_COMPLAINT_FLOW' })
+    } else if (/^show my pending complaints$/i.test(act)) {
+      handleAction({ type: 'SHOW_PENDING_COMPLAINTS' })
+    } else if (/^check (my )?complaint status$/i.test(act)) {
+      handleAction({ type: 'SHOW_COMPLAINT_STATUS' })
+    } else if (/^show my complaint history$/i.test(act)) {
+      handleSend('Show my complaint history')
+    } else if (/^(campus stats|campus statistics|live campus statistics)$/i.test(act)) {
+      handleAction({ type: 'SHOW_CAMPUS_STATS' })
+    } else if (/^(feedback report|show feedback report)$/i.test(act)) {
+      handleAction({ type: 'SHOW_FEEDBACK_REPORT' })
+    } else if (/^cancel$/i.test(act)) {
+      // Dispatch as structured cancel action — never send "Cancel" as text to LLM
+      if (conversationState.includes('FEEDBACK') || conversationState === 'FEEDBACK_SELECTION') {
+        handleAction({ type: 'CANCEL_FEEDBACK' })
+      } else if (conversationState.includes('COMPLAINT') || conversationState === 'WAITING_FOR_LOCATION' || conversationState === 'WAITING_FOR_CATEGORY') {
+        handleAction({ type: 'CANCEL_COMPLAINT' })
+      } else {
+        handleAction({ type: 'CANCEL_COMPLAINT' })
+      }
+    } else if (/^create complaint$/i.test(act)) {
+      // Structured action — do not send as text
+      if (complaintDraft) {
+        handleAction({ type: 'CREATE_COMPLAINT', draft: complaintDraft })
+      }
+    } else if (/^(submit feedback|use this feedback)$/i.test(act)) {
+      // Structured action — do not send as text
+      if (feedbackDraft) {
+        handleAction({ type: 'SUBMIT_FEEDBACK', feedback: feedbackDraft })
+      }
+    } else if (/^edit details$/i.test(act)) {
+      if (complaintDraft) {
+        handleAction({ type: 'EDIT_COMPLAINT', draft: complaintDraft })
+      }
+    } else if (/^edit feedback$/i.test(act)) {
+      if (feedbackDraft) {
+        handleAction({ type: 'EDIT_FEEDBACK', feedback: feedbackDraft })
+      }
+    } else if (/^status of (CR-\d+|CMP-\d+)$/i.test(act)) {
+      // Send as text query — the backend will parse the complaint ID
+      handleSend(act)
+    } else if (/^give feedback for (CR-\d+|CMP-\d+)$/i.test(act)) {
+      handleAction({ type: 'OPEN_FEEDBACK_FLOW' })
+    } else if (/^(i('?m| am) also facing this issue|join complaint|support this ticket)$/i.test(act)) {
+      const lastDup = [...messages].reverse().find(m => m.duplicateMatches && m.duplicateMatches.length > 0)?.duplicateMatches?.[0]
+      if (lastDup) {
+        handleAction({ type: 'JOIN_EXISTING_COMPLAINT', complaintId: lastDup.complaintId })
+      } else {
+        handleSend(act)
+      }
+    } else if (/^(create (new )?complaint anyway|create anyway|submit anyway)$/i.test(act)) {
+      if (complaintDraft) {
+        handleAction({ type: 'CREATE_ANYWAY', draft: complaintDraft })
+      } else {
+        handleSend(act)
+      }
+    } else if (/^(view (existing )?complaint|see existing complaint)$/i.test(act)) {
+      const lastDup = [...messages].reverse().find(m => m.duplicateMatches && m.duplicateMatches.length > 0)?.duplicateMatches?.[0]
+      if (lastDup) {
+        handleAction({ type: 'VIEW_COMPLAINT_HISTORY', complaintId: lastDup.complaintId })
+      } else {
+        handleSend(act)
+      }
+    } else {
+      handleAction({ type: 'SEND_TEXT', text: act })
+    }
+  }
+
+  // Handle Retry
+  const handleRetry = () => {
+    if (lastErrorPrompt && !isRequestPendingRef.current) {
+      handleSend(lastErrorPrompt)
+    }
+  }
+
+  // Submit Edited Feedback
+  const handleSaveEditedFeedback = () => {
+    if (!feedbackEditForm.complaintId || !feedbackEditForm.comment) return
+    const updatedFeedback: StructuredFeedback = {
+      complaintId: feedbackEditForm.complaintId,
+      complaintTitle: feedbackEditForm.complaintTitle,
+      sentiment: editingFeedback?.sentiment || 'Neutral',
+      resolutionQuality: editingFeedback?.resolutionQuality || 'Satisfactory',
+      responseTime: editingFeedback?.responseTime || 'Moderate',
+      communication: editingFeedback?.communication || 'Moderate',
+      suggestedRating: feedbackEditForm.rating,
+      topics: editingFeedback?.topics || ['Overall Experience'],
+      summary: editingFeedback?.summary || 'Student feedback',
+      suggestedFeedback: feedbackEditForm.comment,
+      originalComment: feedbackEditForm.comment,
+      suggestedFollowUp: editingFeedback?.suggestedFollowUp
+    }
+    setEditingFeedback(null)
+    handleAction({ type: 'SUBMIT_FEEDBACK', feedback: updatedFeedback })
+  }
+
+  // Submit Edited Complaint
+  const handleSaveEditedDraft = () => {
+    if (!editForm.title || !editForm.description) return
+    const updatedDraft: StructuredComplaint = {
+      ...editForm,
+      isComplete: true
+    }
+    setEditingDraft(null)
+    handleAction({ type: 'CREATE_COMPLAINT', draft: updatedDraft })
+  }
+
+  // Navigate to Complaint in History
+  const handleSelectComplaintId = (complaintId: string) => {
+    if (role === 'student') {
+      navigate('/student/history')
+    } else if (role === 'teacher') {
+      navigate('/teacher')
+    } else if (role === 'admin') {
+      navigate('/admin/complaints')
+    }
+    setIsOpen(false)
+  }
+
+  // Copy Message Text
+  const handleCopyMessage = (msgId: string, text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedMsgId(msgId)
+    setTimeout(() => setCopiedMsgId(null), 2000)
+  }
+
+  // Regenerate Response
+  const handleRegenerate = () => {
+    const userMsgs = messages.filter((m) => m.sender === 'user')
+    if (userMsgs.length > 0) {
+      const lastUserMsg = userMsgs[userMsgs.length - 1]
+      handleSend(lastUserMsg.text)
+    }
+  }
+
+  // Polish Text Draft in Input
   const handleEnhance = async () => {
     if (!inputValue.trim()) return
     setIsEnhancing(true)
@@ -189,12 +955,13 @@ export const ChatAssistant = () => {
       const enhanced = await enhanceFeedbackText(inputValue)
       setInputValue(enhanced)
     } catch {
-      // Keep original text
+      // keep original
     } finally {
       setIsEnhancing(false)
     }
   }
 
+  // Toggle Voice Input
   const toggleListen = () => {
     if (!SpeechRecognition || !recognitionRef.current) return
     if (isListening) {
@@ -206,289 +973,578 @@ export const ChatAssistant = () => {
     }
   }
 
+  // Reset / Clear Session
   const resetSession = () => {
+    processedMessageIdsRef.current.clear()
+    processedRequestIdsRef.current.clear()
+    processedAnalysisIdsRef.current.clear()
     setMessages([])
     setSessionId(undefined)
-    const pageCtx = PAGE_CONTEXT[location.pathname] || PAGE_CONTEXT['/']
-    setMessages([{
-      id: 'welcome-fresh',
-      text: `👋 New AI session started! How can I assist you with your campus complaints?`,
-      sender: 'bot',
-      timestamp: new Date(),
-      quickActions: pageCtx.quickActions
-    }])
+
+    if (isAuthenticated && user) {
+      const firstName = user?.name?.split(' ')[0] || 'there'
+      const newWelcome: ChatMessage = {
+        id: generateUniqueId('welcome-fresh'),
+        messageType: 'AI_TEXT',
+        text: `Hi ${firstName}! New conversation started. How can I help you today?`,
+        sender: 'bot',
+        timestamp: new Date(),
+        quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', 'Check Complaint Status', '⭐ Give Feedback']
+      }
+      appendMessageSafely(newWelcome)
+    } else {
+      const guestWelcome: ChatMessage = {
+        id: generateUniqueId('welcome-fresh'),
+        messageType: 'AI_TEXT',
+        text: `Welcome to CampusResolve! 🏛️ I'm your **Public Campus Assistant**.\n\nI can answer general questions about filing grievances, resolution workflows, feedback policies, and login support.\n\n🔒 *Please sign in to access your personal complaints, status tracking, and feedback history.*`,
+        sender: 'bot',
+        timestamp: new Date(),
+        quickActions: ['How to Submit a Complaint', 'How Complaint Tracking Works', 'Feedback Information', 'Login Help']
+      }
+      appendMessageSafely(guestWelcome)
+    }
   }
+
+  const activeSuggestedPrompts = !isAuthenticated ? GUEST_SUGGESTED_PROMPTS : AUTH_STUDENT_SUGGESTED_PROMPTS
 
   return (
     <>
-      {/* ── Floating Chat Drawer / Window ─────────────────────── */}
+      {/* ── Chat Window Modal / Floating Drawer ─────────────────────── */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 20 }}
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`fixed z-50 overflow-hidden flex flex-col bg-[var(--card)] border border-[var(--border)] shadow-2xl shadow-black/25 backdrop-blur-xl ${
+            className={`fixed z-50 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl shadow-slate-950/20 backdrop-blur-xl ${
               isFullscreen
-                ? 'inset-3 sm:inset-6 md:inset-8 rounded-[24px]'
-                : 'bottom-24 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[410px] h-[580px] max-h-[82vh] rounded-[24px]'
+                ? 'top-4 bottom-4 right-4 left-4 md:left-24 md:top-6 md:bottom-6 md:right-6 rounded-[24px]'
+                : 'bottom-6 right-6 w-[430px] max-w-[calc(100vw-32px)] h-[620px] max-h-[calc(100vh-64px)] rounded-[24px]'
             }`}
           >
             {/* ══ HEADER ══ */}
-            <div className="p-3.5 px-4.5 sm:p-4 sm:px-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface-secondary)]/60 backdrop-blur-md shrink-0">
-              <div className="flex items-center gap-2.5">
+            <div className="p-3.5 px-4 sm:px-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0 select-none">
+              <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="w-8 h-8 rounded-[11px] bg-[#111827] dark:bg-white text-white dark:text-[#111827] flex items-center justify-center shadow-xs">
-                    <Sparkles className="w-4 h-4" />
+                  <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${isAuthenticated ? 'bg-slate-900 dark:bg-blue-600' : 'bg-slate-700 dark:bg-slate-800'} text-white flex items-center justify-center shadow-xs transition-colors`}>
+                    {isAuthenticated ? <Sparkles className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-300" />}
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-[var(--card)]" />
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${isAuthenticated ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'} border-2 border-white dark:border-slate-900`} />
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[var(--text-primary)] tracking-tight leading-tight">
-                    CampusResolve AI
+                  <h3 className="text-[14px] sm:text-[14.5px] font-semibold text-slate-900 dark:text-white tracking-tight leading-tight flex items-center gap-1.5">
+                    CampusResolve AI Assistant
                   </h3>
-                  <p className="text-[11px] font-normal text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Smart Assistant • Active
-                  </p>
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-normal">
+                    {isAuthenticated ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">AI Online • Personalized Assistance</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">🔒 Guest Mode • Login required for personal data</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <button
                   onClick={resetSession}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-                  title="New Session"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Refresh Conversation"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-                  title={isFullscreen ? 'Collapse' : 'Expand'}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isFullscreen ? 'Restore' : 'Fullscreen'}
                 >
                   {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                 </button>
                 <button
-                  onClick={() => { setIsOpen(false); setIsFullscreen(false); setIsUrgentMode(false) }}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                  title="Close"
+                  onClick={() => { setIsOpen(false); setIsFullscreen(false) }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                  title="Close AI Assistant"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* ══ MESSAGES STREAM ══ */}
-            <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-3 sm:space-y-3.5 bg-[var(--background)]/40 scrollbar-thin">
-              
-              {/* Smart Suggestion Chips (Shown on initial greeting state) */}
-              {messages.length <= 1 && (
-                <div className="space-y-2 pt-0.5 pb-2">
-                  <span className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider block px-1">
-                    Suggested Questions
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {SMART_PROMPT_CARDS.map((card) => {
-                      const Icon = card.icon
-                      return (
+            {/* ══ MESSAGE LIST CONTAINER ══ */}
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-3.5 sm:p-4 bg-slate-50/40 dark:bg-slate-950/30 scrollbar-thin relative"
+            >
+              <div className="w-full max-w-3xl mx-auto space-y-3">
+                {/* Suggested Prompts on Initial State */}
+                {messages.length <= 1 && (
+                  <div className="space-y-2 pt-1 pb-1">
+                    <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block px-1">
+                      Suggested Prompts
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {activeSuggestedPrompts.map((card) => (
                         <button
-                          key={card.label}
-                          onClick={() => handleSend(card.msg)}
-                          className="p-2.5 sm:p-3 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-2xs hover:border-[var(--accent)] hover:shadow-xs transition-all text-left flex items-start gap-2.5 cursor-pointer group"
+                          key={card.title}
+                          onClick={() => handleAction(card.action)}
+                          disabled={isTyping}
+                          className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-blue-400 hover:shadow-xs transition-all text-left flex items-start gap-2.5 cursor-pointer group disabled:opacity-50"
                         >
-                          <div className="w-6 h-6 rounded-lg bg-[var(--surface-secondary)] text-[var(--accent)] flex items-center justify-center shrink-0 border border-[var(--border)] group-hover:scale-105 transition-transform">
-                            <Icon className="w-3.5 h-3.5" />
+                          <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-600 group-hover:scale-105 transition-transform">
+                            <ChevronRight className="w-3.5 h-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <h4 className="text-[12px] sm:text-[13px] font-medium text-[var(--text-primary)] leading-tight">{card.label}</h4>
-                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-tight">{card.desc}</p>
+                            <h4 className="text-[12.5px] font-semibold text-slate-900 dark:text-white leading-snug">
+                              {card.title}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug truncate">
+                              {card.desc}
+                            </p>
                           </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Chat Messages */}
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                >
-                  <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[75%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {/* Avatar Icon */}
-                    {msg.sender === 'user' ? (
-                      <UserAvatar
-                        src={user?.profilePicture || user?.profileImage}
-                        name={user?.name}
-                        size="sm"
-                        className="h-6 w-6 sm:h-7 sm:w-7 border border-[var(--border)] shrink-0"
-                      />
-                    ) : (
-                      <div className="w-6 h-6 sm:h-7 sm:w-7 rounded-lg bg-[#111827] dark:bg-white text-white dark:text-[#111827] flex items-center justify-center shrink-0 shadow-2xs">
-                        <Bot className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-
-                    {/* Chat Bubble */}
-                    <div
-                      className={`p-3 sm:p-3.5 px-3.5 sm:px-4 break-words overflow-hidden ${
-                        msg.sender === 'user'
-                          ? 'rounded-2xl rounded-br-xs bg-[#111827] dark:bg-blue-600 text-white shadow-xs'
-                          : 'rounded-2xl rounded-bl-xs bg-[var(--card)] border border-[var(--border)] text-[var(--text-primary)] shadow-2xs'
-                      }`}
-                    >
-                      <ChatMessageContent content={msg.text} isUser={msg.sender === 'user'} />
-                    </div>
-                  </div>
-
-                  {/* Timestamp */}
-                  <span className={`text-[10.5px] font-normal mt-1 mx-8 sm:mx-9 text-[var(--text-muted)] ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}>
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-
-                  {/* Quick Action Pills */}
-                  {msg.quickActions && msg.quickActions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5 ml-8 sm:ml-9 max-w-[85%] sm:max-w-[75%]">
-                      {msg.quickActions.map((act) => (
-                        <button
-                          key={act}
-                          onClick={() => handleSend(act)}
-                          className="px-2.5 sm:px-3 py-1 rounded-full text-[12px] sm:text-[12.5px] font-medium border border-[var(--border)] bg-[var(--card)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent)] transition-all cursor-pointer shadow-2xs"
-                        >
-                          {act}
                         </button>
                       ))}
                     </div>
-                  )}
-                </motion.div>
-              ))}
-
-              {/* Typing Indicator */}
-              {isTyping && (
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2"
-                >
-                  <div className="w-6 h-6 sm:h-7 sm:w-7 rounded-lg bg-[#111827] dark:bg-white text-white dark:text-[#111827] flex items-center justify-center shrink-0">
-                    <Bot className="w-3.5 h-3.5" />
                   </div>
-                  <div className="p-2.5 px-3 rounded-xl bg-[var(--card)] border border-[var(--border)] flex items-center gap-1.5 shadow-2xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]" />
-                  </div>
-                </motion.div>
-              )}
+                )}
 
-              <div ref={messagesEndRef} />
+                {/* Message Items Stream */}
+
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className={`flex items-start gap-2 ${msg.sender === 'user' ? 'flex-row-reverse max-w-[85%] sm:max-w-[70%]' : 'flex-row max-w-[92%] sm:max-w-[85%]'}`}>
+                      {/* Avatars */}
+                      {msg.sender === 'user' ? (
+                        <UserAvatar
+                          src={user?.profilePicture || user?.profileImage}
+                          name={user?.name}
+                          size="sm"
+                          className="h-6 w-6 sm:h-7 sm:w-7 border border-slate-200 dark:border-slate-700 shrink-0 mt-0.5"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 sm:h-7 sm:w-7 rounded-lg bg-slate-900 dark:bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                          <Bot className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+
+                      {/* Bubble */}
+                      <div
+                        className={`p-3 sm:p-3.5 break-words overflow-hidden ${
+                          msg.sender === 'user'
+                            ? 'rounded-2xl rounded-tr-xs bg-[#0f172a] dark:bg-blue-600 text-white shadow-xs'
+                            : msg.messageType === 'SUCCESS'
+                            ? 'rounded-2xl rounded-tl-xs bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-slate-800 dark:text-slate-100 shadow-2xs'
+                            : 'rounded-2xl rounded-tl-xs bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 shadow-2xs'
+                        }`}
+                      >
+                        <ChatMessageContent
+                          content={msg.text}
+                          isUser={msg.sender === 'user'}
+                          structuredComplaint={msg.structuredComplaint}
+                          structuredFeedback={msg.structuredFeedback}
+                          duplicateMatches={msg.duplicateMatches}
+                          queryResults={msg.queryResults}
+                          eligibleComplaints={msg.eligibleComplaints}
+                          ragSources={msg.ragSources}
+                          widgetData={msg.widgetData}
+                          onCreateComplaint={(draft) => handleAction({ type: 'CREATE_COMPLAINT', draft })}
+                          onEditComplaint={(draft) => handleAction({ type: 'EDIT_COMPLAINT', draft })}
+                          onCancelComplaint={() => handleAction({ type: 'CANCEL_COMPLAINT' })}
+                          onSubmitFeedback={(fb) => handleAction({ type: 'SUBMIT_FEEDBACK', feedback: fb })}
+                          onEditFeedback={(fb) => handleAction({ type: 'EDIT_FEEDBACK', feedback: fb })}
+                          onCancelFeedback={() => handleAction({ type: 'CANCEL_FEEDBACK' })}
+                          onSelectResolvedComplaint={(c) => handleAction({ type: 'SELECT_FEEDBACK_COMPLAINT', complaint: c })}
+                          onSelectComplaintId={(id) => handleAction({ type: 'VIEW_COMPLAINT_HISTORY', complaintId: id })}
+                          onJoinComplaint={(complaintId) => handleAction({ type: 'JOIN_EXISTING_COMPLAINT', complaintId })}
+                          onCreateAnyway={(draft) => handleAction({ type: 'CREATE_ANYWAY', draft })}
+                          isSubmittingDraft={isSubmittingDraft}
+                          isSubmittingFeedback={isSubmittingFeedback}
+                          isJoiningComplaint={isJoiningComplaint}
+                        />
+
+                      </div>
+                    </div>
+
+                    {/* Message Timestamp & Actions */}
+                    <div className={`flex items-center gap-2 mt-1 mx-8 sm:mx-9 text-[10.5px] text-slate-400 dark:text-slate-500 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                      {msg.sender === 'bot' && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleCopyMessage(msg.id, msg.text)}
+                            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                            title="Copy response"
+                          >
+                            {copiedMsgId === msg.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          </button>
+                          <button
+                            onClick={handleRegenerate}
+                            disabled={isTyping}
+                            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer disabled:opacity-40"
+                            title="Regenerate response"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quick Action Chips */}
+                    {msg.quickActions && msg.quickActions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5 ml-8 sm:ml-9 max-w-[92%] sm:max-w-[85%]">
+                        {msg.quickActions.map((act) => (
+                          <button
+                            key={`act-${act}`}
+                            onClick={() => handleQuickActionClick(act)}
+                            disabled={isTyping}
+                            className="px-2.5 py-1 rounded-full text-[12px] font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-400 transition-all cursor-pointer shadow-2xs disabled:opacity-40"
+                          >
+                            {act}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+
+                {/* Error Banner with Retry */}
+                {lastErrorPrompt && !isTyping && (
+                  <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center justify-between gap-2 text-[12px] text-rose-700 dark:text-rose-300">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                      <span>Sorry, I couldn't process that request. Please try again.</span>
+                    </div>
+                    <button
+                      onClick={handleRetry}
+                      className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-medium hover:bg-rose-700 transition-colors cursor-pointer shrink-0"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {/* ══ AI TYPING INDICATOR ══ */}
+                {isTyping && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <div className="w-6 h-6 sm:h-7 sm:w-7 rounded-lg bg-slate-900 dark:bg-blue-600 text-white flex items-center justify-center shrink-0">
+                      <Bot className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="p-2.5 px-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-2 shadow-2xs">
+                      <span className="text-[12px] text-slate-600 dark:text-slate-300 font-medium">CampusResolve AI</span>
+                      <div className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce [animation-delay:0.15s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce [animation-delay:0.3s]" />
+                      </div>
+                      <span className="text-[11.5px] text-slate-400 dark:text-slate-500">Analyzing your request...</span>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             </div>
 
-            {/* ══ AI ENHANCE BANNER ══ */}
+
+
+            {/* ══ AI POLISH DRAFT BAR ══ */}
             <AnimatePresence>
-              {inputValue.trim().length > 0 && (
+              {inputValue.trim().length > 15 && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="px-3.5 py-1.5 flex items-center justify-between border-t border-[var(--border)] bg-[var(--primary-subtle)] overflow-hidden"
+                  className="px-4 py-1.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 overflow-hidden"
                 >
-                  <div className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--accent)]">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>AI Writing Assistant</span>
+                  <div className="w-full max-w-3xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[11.5px] font-medium text-blue-600 dark:text-blue-400">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Improve Text Description</span>
+                    </div>
+                    <button
+                      onClick={handleEnhance}
+                      disabled={isEnhancing}
+                      className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-900 dark:bg-blue-600 text-white hover:opacity-90 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {isEnhancing ? 'Polishing...' : '✨ Polish Text'}
+                    </button>
                   </div>
-                  <button
-                    onClick={handleEnhance}
-                    disabled={isEnhancing}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] sm:text-[12px] font-medium bg-[#111827] dark:bg-blue-600 text-white hover:opacity-90 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                  >
-                    {isEnhancing ? 'Enhancing...' : '✨ Polish Draft'}
-                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* ══ INPUT COMPOSER ══ */}
-            <div className="p-3 sm:p-3.5 border-t border-[var(--border)] bg-[var(--card)] shrink-0 space-y-1.5">
-              <div className="flex items-center gap-2 rounded-xl p-1.5 px-2 bg-[var(--surface-secondary)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:bg-[var(--card)] focus-within:ring-2 focus-within:ring-blue-500/10 transition-all shadow-inner">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend(inputValue)
-                    }
-                  }}
-                  placeholder="Ask CampusResolve AI anything..."
-                  className="flex-1 bg-transparent px-2 text-[13px] sm:text-[14px] font-normal text-[var(--text-primary)] placeholder:text-[13px] sm:placeholder:text-[14px] placeholder-[var(--text-muted)] focus:outline-none"
-                />
+            {/* ══ STICKY CHAT COMPOSER ══ */}
+            <div className="p-3 sm:p-3.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+              <div className="w-full max-w-3xl mx-auto space-y-1.5">
+                <div className="flex items-end gap-2 rounded-2xl p-1.5 px-3 bg-slate-100/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={inputValue}
+                    onChange={handleTextareaInput}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleAction({ type: 'SEND_TEXT', text: inputValue })
+                      }
+                    }}
+                    placeholder="Ask about a complaint, check a status, create a grievance, or share feedback..."
+                    className="flex-1 bg-transparent py-1.5 text-[13.5px] sm:text-[14px] text-slate-900 dark:text-white placeholder:text-[13px] sm:placeholder:text-[13.5px] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-none min-h-[24px] max-h-[120px]"
+                  />
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {SpeechRecognition && (
+                  <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                    {SpeechRecognition && (
+                      <button
+                        type="button"
+                        onClick={toggleListen}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          isListening
+                            ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/40'
+                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+                        }`}
+                        title="Voice Input"
+                      >
+                        {isListening ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      onClick={toggleListen}
-                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                        isListening
-                          ? 'text-rose-500 bg-rose-500/15'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'
-                      }`}
-                      title="Voice Input"
+                      onClick={() => handleAction({ type: 'SEND_TEXT', text: inputValue })}
+                      disabled={!inputValue.trim() || isTyping}
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900 dark:bg-blue-600 text-white flex items-center justify-center hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
                     >
-                      {isListening ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
+                      <Send className="w-3.5 h-3.5" />
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleSend(inputValue)}
-                    disabled={!inputValue.trim() || isTyping}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#111827] dark:bg-blue-600 text-white flex items-center justify-center hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between text-[11px] font-normal text-[var(--text-muted)] px-1">
-                <span>AI-Powered • Role-Aware</span>
-                <span>Press ↵ to send</span>
-              </div>
             </div>
+
+
+            {/* ══ EDIT COMPLAINT DETAILS MODAL ══ */}
+            {editingDraft && (
+              <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3.5">
+                <div className="w-full max-w-[390px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <h4 className="text-[14px] font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Edit3 className="w-4 h-4 text-blue-600" /> Edit Complaint Details
+                    </h4>
+                    <button
+                      onClick={() => handleAction({ type: 'CANCEL_COMPLAINT' })}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 text-[12px]">
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">Title</label>
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[12.5px] focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">Category</label>
+                        <select
+                          value={editForm.category}
+                          onChange={e => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                          className="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[12px] focus:outline-none"
+                        >
+                          <option value="Infrastructure">Infrastructure</option>
+                          <option value="Academics">Academics</option>
+                          <option value="Transport">Transport</option>
+                          <option value="Financial">Financial</option>
+                          <option value="Hostel">Hostel</option>
+                          <option value="General">General</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">Priority</label>
+                        <select
+                          value={editForm.priority}
+                          onChange={e => setEditForm(prev => ({ ...prev, priority: e.target.value as any }))}
+                          className="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[12px] focus:outline-none"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="Urgent">Urgent</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">Location / Room</label>
+                      <input
+                        type="text"
+                        value={editForm.location}
+                        onChange={e => setEditForm(prev => ({ ...prev, location: e.target.value }))}
+                        placeholder="e.g. Seminar Hall, Lab 3"
+                        className="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[12.5px] focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">Description</label>
+                      <textarea
+                        rows={3}
+                        value={editForm.description}
+                        onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                        className="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[12.5px] focus:outline-none focus:border-blue-500 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => handleAction({ type: 'CANCEL_COMPLAINT' })}
+                      className="px-3 py-1.5 rounded-xl text-[12px] text-slate-500 hover:text-slate-700 dark:text-slate-400 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEditedDraft}
+                      className="px-3.5 py-1.5 rounded-xl text-[12px] font-semibold bg-slate-900 dark:bg-blue-600 text-white hover:opacity-90 transition-all cursor-pointer shadow-xs"
+                    >
+                      Save & Create
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ══ EDIT FEEDBACK MODAL ══ */}
+            {editingFeedback && (
+              <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3.5">
+                <div className="w-full max-w-[390px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <h4 className="text-[14px] font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" /> Edit Feedback Details
+                    </h4>
+                    <button
+                      onClick={() => handleAction({ type: 'CANCEL_FEEDBACK' })}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5 text-[12px]">
+                    <div>
+                      <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 block font-bold">
+                        {feedbackEditForm.complaintId}
+                      </span>
+                      <span className="text-[13px] font-semibold text-slate-900 dark:text-white">
+                        {feedbackEditForm.complaintTitle}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                        Satisfaction Rating
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={`star-edit-${star}`}
+                            type="button"
+                            onClick={() => setFeedbackEditForm(prev => ({ ...prev, rating: star }))}
+                            className="p-1 cursor-pointer transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={`w-5 h-5 ${
+                                star <= feedbackEditForm.rating
+                                  ? 'text-amber-500 fill-amber-500'
+                                  : 'text-slate-300 dark:text-slate-600'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                        <span className="text-[12px] font-bold text-slate-900 dark:text-white ml-1">
+                          {feedbackEditForm.rating}/5
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                        Feedback Comments
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={feedbackEditForm.comment}
+                        onChange={e => setFeedbackEditForm(prev => ({ ...prev, comment: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[12.5px] focus:outline-none focus:border-blue-500 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => handleAction({ type: 'CANCEL_FEEDBACK' })}
+                      className="px-3 py-1.5 rounded-xl text-[12px] text-slate-500 hover:text-slate-700 dark:text-slate-400 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEditedFeedback}
+                      className="px-3.5 py-1.5 rounded-xl text-[12px] font-semibold bg-slate-900 dark:bg-blue-600 text-white hover:opacity-90 transition-all cursor-pointer shadow-xs"
+                    >
+                      Submit Feedback
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Floating AI Trigger Button ─────────────────────────── */}
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
-        whileHover={{ scale: 1.06, rotate: 1 }}
-        whileTap={{ scale: 0.94 }}
-        onClick={() => { setIsOpen(!isOpen); setIsUrgentMode(false) }}
-        className="fixed bottom-6 right-6 z-50 h-[58px] w-[58px] rounded-[22px] bg-[#111827] dark:bg-white text-white dark:text-[#111827] flex items-center justify-center shadow-xl border border-white/10 dark:border-black/10 hover:shadow-2xl transition-all cursor-pointer"
-        aria-label="Toggle AI Assistant"
-      >
-        {isOpen ? (
-          <X className="w-5 h-5" />
-        ) : (
+      {/* ── Floating AI Assistant Trigger Button (Hidden when drawer is open) ─ */}
+      {!isOpen && (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 z-50 h-[56px] w-[56px] rounded-[20px] bg-slate-900 dark:bg-blue-600 text-white flex items-center justify-center shadow-xl border border-slate-800 hover:shadow-2xl transition-all cursor-pointer"
+          aria-label="Open CampusResolve AI Assistant"
+        >
           <div className="relative flex items-center justify-center">
             <Sparkles className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#111827] dark:border-white" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900 dark:border-blue-600 animate-pulse" />
           </div>
-        )}
-      </motion.button>
+        </motion.button>
+      )}
     </>
   )
 }
 
 export default ChatAssistant
+

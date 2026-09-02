@@ -134,10 +134,11 @@ const PublicProfilePage = () => {
           <div className="pt-2">
             <Link
               to={isAuthenticated ? (role === 'admin' ? '/admin' : role === 'teacher' ? '/teacher' : '/student') : '/login'}
-              className="w-full py-3 px-4 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#111827] text-xs font-bold uppercase tracking-wider transition-all shadow-md block text-center"
+              className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md block text-center"
             >
               Return to Gateway
             </Link>
+
           </div>
         </motion.div>
       </main>
@@ -215,9 +216,10 @@ const PublicProfilePage = () => {
             {/* Column 2: Center Credentials */}
             <div className="lg:col-span-6 space-y-3.5 text-center lg:text-left">
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
-                <span className="px-3 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider bg-[#111827] text-white dark:bg-white dark:text-[#111827]">
+                <span className="px-3 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider bg-[#111827] text-white dark:bg-blue-600 dark:text-white">
                   {roleLabel}
                 </span>
+
 
                 <span className="flex items-center gap-1.5 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                   <ShieldCheck className="h-3.5 w-3.5" /> Verified Profile

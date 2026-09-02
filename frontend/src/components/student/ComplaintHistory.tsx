@@ -253,7 +253,7 @@ export const ComplaintHistory = () => {
                 onClick={() => setStatusFilter(tab.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] shadow-xs'
+                    ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
                 }`}
               >
@@ -261,13 +261,14 @@ export const ComplaintHistory = () => {
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-bold ${
                     isActive
-                      ? 'bg-white/20 dark:bg-black/15 text-white dark:text-[#111827]'
+                      ? 'bg-white/20 text-white'
                       : 'bg-[var(--surface-secondary)] text-[var(--text-muted)]'
                   }`}
                 >
                   {count}
                 </span>
               </button>
+
             )
           })}
         </div>
