@@ -40,11 +40,17 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
-    const socketUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+    // Disable Socket.IO on Vercel (serverless) — no persistent WebSocket support
+    const isVercel = import.meta.env.VITE_VERCEL === 'true';
+    if (isVercel) {
+      setConnected(false);
+      return;
+    }
+
+    const socketUrl = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001');
 
     const newSocket = io(socketUrl, {
       auth: { token },
-      // Allow polling upgrade — prevents "WebSocket closed before connection" errors
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -57,11 +63,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const { userId: uid, studentId: sid, teacherId: tid, role: r } = roomRef.current;
 
-      // Join every stable identifier the backend may emit to.
       const roomIds = Array.from(new Set([uid, sid, tid].filter(Boolean)));
       roomIds.forEach((roomId) => newSocket.emit('join', roomId));
 
-      // Join role-specific room
       if (r) newSocket.emit('join_role', r);
     });
 
@@ -71,7 +75,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     newSocket.on('connect_error', (err) => {
-      // Suppress noisy console errors in dev — backend may not be running
       console.warn('Socket connect error (backend may be offline):', err.message);
     });
 
@@ -82,8 +85,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       newSocket.disconnect();
     };
-  // Only re-run when the auth token actually changes (login/logout)
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const value = React.useMemo(() => ({ socket, connected }), [socket, connected]);
 

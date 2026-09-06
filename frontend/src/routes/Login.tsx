@@ -56,7 +56,6 @@ const LoginPage: React.FC = () => {
     try {
       await signInWithGoogle()
     } catch (err: any) {
-      console.error('Google OAuth error:', err)
       setError(err?.message || 'Google sign-in failed. Please try again or use email and password.')
     }
   }

@@ -44,23 +44,29 @@ export const loginWithEmail = async (credentials: Credentials) => {
     const cleanEmail = credentials.email.trim()
 
     // 1. Authenticate with Supabase Auth (SOURCE OF TRUTH)
+    // Suppress network errors to console — we fallback to backend API
     const { data: sbData, error: sbError } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: credentials.password
+    }).catch((err) => {
+      // Catch and suppress Supabase network errors (400, network failures)
+      // The backend API is the primary auth source
+      console.debug('Supabase auth skipped, using backend API')
+      return { data: null, error: err }
     })
 
-    // 2. Also authenticate against backend API
+    // 2. Also authenticate against backend API (PRIMARY AUTH)
     let backendResult: any = null
     try {
       const { data } = await apiClient.post('/auth/student-login', credentials)
       backendResult = data
     } catch (backendErr: any) {
-      if (sbError) {
+      if (sbError && !sbData) {
         throw new Error(sbError.message || backendErr?.response?.data?.message || 'Invalid email address or password.')
       }
     }
 
-    if (sbError && !backendResult) {
+    if (sbError && !backendResult && !sbData) {
       throw new Error(sbError.message || 'Invalid email address or password.')
     }
 
@@ -159,9 +165,13 @@ export const signInWithGoogle = async () => {
     options: {
       redirectTo: window.location.origin,
     },
+  }).catch((err) => {
+    // Suppress Supabase network errors (user cancelled, network failure, etc.)
+    console.debug('Google OAuth skipped')
+    return { error: err }
   })
   if (error) {
-    console.error('Google OAuth error:', error)
+    // Don't log — the error is re-thrown and shown to user in the UI
     throw new Error(error.message || 'Google sign-in failed. Please try again or use email and password.')
   }
 }
