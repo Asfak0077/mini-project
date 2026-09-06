@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "build": "echo \"Backend build not required\""
+    "build": "echo \"Backend build not required\"",
+    "build:frontend": "echo \"Backend build not required\""
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
