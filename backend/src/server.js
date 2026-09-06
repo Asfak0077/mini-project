@@ -117,3 +117,6 @@ if (require.main === module) {
     console.error('Failed to start backend', error)
   })
 }
+
+module.exports = app
+
