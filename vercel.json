@@ -1,14 +1,14 @@
 {
   "version": 2,
   "framework": null,
-  "regions": ["bom1"],
   "buildCommand": "npm run build:frontend",
   "installCommand": "npm install",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.js": {
-      "includeFiles": "backend/**",
-      "maxDuration": 30
+      "includeFiles": ["backend/**", "node_modules/**"],
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
   "routes": [
@@ -31,6 +31,14 @@
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, PATCH, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-Requested-With" }
       ]
     }
   ]
