@@ -152,6 +152,7 @@ export interface ChatMessage {
   lang?: string
   isUrgent?: boolean
   isDraftCreating?: boolean
+  spokenText?: string
 }
 
 export interface ChatResponse {
@@ -171,6 +172,7 @@ export interface ChatResponse {
   ragSources?: RAGSource[] | null
   widgetData?: any
   isUrgent?: boolean
+  spokenText?: string
 }
 
 export interface SendMessageParams {
@@ -183,6 +185,7 @@ export interface SendMessageParams {
   actionType?: string | null
   requestId?: string
   previousAssistantMessage?: string
+  isVoiceMode?: boolean
 }
 
 export const sendChatMessage = async (
@@ -260,6 +263,11 @@ export const enhanceFeedbackText = async (
 ): Promise<string> => {
   const { data } = await apiClient.post('/chatbot/enhance-text', { text, mode })
   return data.enhanced
+}
+
+export const analyzeFeedbackText = async (text: string): Promise<any> => {
+  const { data } = await apiClient.post('/chatbot/analyze-feedback', { text })
+  return data.analysis
 }
 
 export const fetchUserContext = async (userId: string, userRole: string): Promise<any> => {

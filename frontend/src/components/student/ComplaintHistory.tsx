@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import ComplaintIdBadge from '../shared/ComplaintIdBadge'
+import ComplaintAIIntelligencePanel from '../shared/ComplaintAIIntelligencePanel'
 
 const priorityConfig: Record<string, { bg: string; text: string; label: string; dot: string }> = {
   high: { bg: 'bg-rose-500/10 border-rose-500/20', text: 'text-rose-600 dark:text-rose-400', label: 'High Priority', dot: 'bg-rose-500' },
@@ -450,6 +451,13 @@ export const ComplaintHistory = () => {
                           </p>
                         </div>
                       </div>
+
+                      {/* AI Operational Intelligence & Health Score Panel */}
+                      <ComplaintAIIntelligencePanel
+                        complaintId={complaint.id}
+                        ticketNumber={complaint.complaintId}
+                        defaultExpanded={true}
+                      />
 
                       {/* Faculty Remarks (if present) */}
                       {complaint.adminRemarks && (

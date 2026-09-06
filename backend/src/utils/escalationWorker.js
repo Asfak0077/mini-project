@@ -72,6 +72,13 @@ const runEscalationCheck = async () => {
             }
         }
 
+        // Also refresh AI intelligence for active unresolved complaints
+        const activeComplaints = await Complaint.find({ status: { $ne: 'Resolved' } }).limit(20)
+        const { analyzeComplaintIntelligence } = require('../services/aiIntelligenceService')
+        for (const ac of activeComplaints) {
+            analyzeComplaintIntelligence(ac, { force: false }).catch(() => undefined)
+        }
+
         console.log('Escalation check complete.');
     } catch (error) {
         console.error('Escalation check failed:', error);
@@ -88,3 +95,4 @@ const initEscalationWorker = () => {
 };
 
 module.exports = { initEscalationWorker };
+

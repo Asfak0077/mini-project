@@ -152,10 +152,10 @@ export const AIResolutionPredictionCard: React.FC<AIResolutionPredictionCardProp
               <button
                 type="button"
                 onClick={() => {
-                  const p = prediction.suggestedPriority.toLowerCase()
+                  const p = (prediction.suggestedPriority || '').toLowerCase()
                   if (p === 'low' || p === 'medium' || p === 'high') {
                     onApplyPriority(p)
-                  } else if (p === 'critical') {
+                  } else if (p === 'critical' || p === 'urgent') {
                     onApplyPriority('high')
                   }
                 }}
@@ -179,7 +179,7 @@ export const AIResolutionPredictionCard: React.FC<AIResolutionPredictionCardProp
             {onApplyDepartment && prediction?.recommendedDepartment && (
               <button
                 type="button"
-                onClick={() => onApplyDepartment(prediction.recommendedDepartment)}
+                onClick={() => prediction?.recommendedDepartment && onApplyDepartment(prediction.recommendedDepartment)}
                 className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
                 Apply

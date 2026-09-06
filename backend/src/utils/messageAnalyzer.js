@@ -55,11 +55,12 @@ const ISSUE_KEYWORDS = [
 
 // ── Action Patterns ──────────────────────────────────────────────────────────
 const ACTION_PATTERNS = {
-  CANCEL: /^(cancel|exit|stop|nevermind|never mind|close|abort|go back)$/i,
+  CANCEL: /^(cancel|cancel feedback|cancel complaint|exit|stop|nevermind|never mind|close|abort|go back)$/i,
+  CONFIRM: /^(yes|confirm|proceed|ok|okay|submit|yes please|do it|confirm submission|submit it)$/i,
   CREATE_COMPLAINT: /^(create complaint|submit complaint|confirm complaint|create)$/i,
-  SUBMIT_FEEDBACK: /^(submit feedback|confirm feedback|use this feedback|submit)$/i,
-  EDIT_COMPLAINT: /^(edit details|edit complaint|modify complaint|edit)$/i,
-  EDIT_FEEDBACK: /^(edit feedback|modify feedback)$/i,
+  SUBMIT_FEEDBACK: /^(submit feedback|confirm feedback|use this feedback|submit my feedback|submit)$/i,
+  EDIT_COMPLAINT: /^(edit details|edit complaint|modify complaint|edit|change location|update location)$/i,
+  EDIT_FEEDBACK: /^(edit feedback|modify feedback|change feedback)$/i,
   JOIN_COMPLAINT: /^(i'm also facing this issue|i am also facing this issue|join complaint|support complaint|i also have this issue|same issue here)$/i,
   CREATE_ANYWAY: /^(create new complaint anyway|create anyway|submit anyway|file anyway|proceed anyway)$/i,
   VIEW_EXISTING: /^(view existing complaint|view complaint|see complaint|check existing complaint)$/i
@@ -106,10 +107,29 @@ const extractEntities = (message, conversationState, complaintDraft) => {
     entities.hasIssueDescription = true
   }
 
-  // Rating extraction (1-5)
+  // Rating extraction (digits 1-5 or word numbers)
+  const wordMap = { one: 1, two: 2, three: 3, four: 4, five: 5 }
+  const wordMatch = msg.match(/\b(one|two|three|four|five)\s*(star|stars)?\b/i)
+  if (wordMatch && wordMap[wordMatch[1].toLowerCase()]) {
+    entities.rating = wordMap[wordMatch[1].toLowerCase()]
+  }
   const ratingMatch = msg.match(/\b([1-5])\s*(star|stars|out of|\/5)?\b/i)
   if (ratingMatch) {
     entities.rating = parseInt(ratingMatch[1], 10)
+  }
+
+  // Feedback dimensions
+  const resQualityMatch = msg.match(/resolution\s+quality\s+(?:was|is)?\s*(poor|fair|good|excellent|satisfactory)/i)
+  if (resQualityMatch) {
+    entities.resolutionQuality = resQualityMatch[1].charAt(0).toUpperCase() + resQualityMatch[1].slice(1)
+  }
+  const respTimeMatch = msg.match(/response\s+time\s+(?:was|is)?\s*(poor|fair|good|slow|fast|delayed|moderate)/i)
+  if (respTimeMatch) {
+    entities.responseTime = respTimeMatch[1].charAt(0).toUpperCase() + respTimeMatch[1].slice(1)
+  }
+  const commMatch = msg.match(/communication\s+(?:was|is)?\s*(poor|fair|good|excellent|moderate)/i)
+  if (commMatch) {
+    entities.communication = commMatch[1].charAt(0).toUpperCase() + commMatch[1].slice(1)
   }
 
   return entities
@@ -251,6 +271,24 @@ const analyzeCurrentMessage = ({
   }
 
   // ── 4. Priority 3: Confirm actions from text ───────────────────────────
+  if (ACTION_PATTERNS.CONFIRM.test(normalizedMsg)) {
+    if (conversationState === 'COMPLAINT_PREVIEW' || conversationState === 'AWAITING_COMPLAINT_CONFIRMATION') {
+      analysis.messageCategory = MESSAGE_CATEGORIES.CONFIRM_ACTION
+      analysis.intent = 'CREATE_COMPLAINT'
+      analysis.requiredAction = 'CREATE_COMPLAINT'
+      analysis.shouldGenerateLLMReply = false
+      analysis.confidence = 1.0
+      return analysis
+    }
+    if (conversationState === 'FEEDBACK_PREVIEW' || conversationState === 'AWAITING_FEEDBACK_CONFIRMATION') {
+      analysis.messageCategory = MESSAGE_CATEGORIES.CONFIRM_ACTION
+      analysis.intent = 'SUBMIT_FEEDBACK'
+      analysis.requiredAction = 'SUBMIT_FEEDBACK'
+      analysis.shouldGenerateLLMReply = false
+      analysis.confidence = 1.0
+      return analysis
+    }
+  }
   if (ACTION_PATTERNS.CREATE_COMPLAINT.test(normalizedMsg)) {
     analysis.messageCategory = MESSAGE_CATEGORIES.CONFIRM_ACTION
     analysis.intent = 'CREATE_COMPLAINT'
@@ -263,6 +301,22 @@ const analyzeCurrentMessage = ({
     analysis.messageCategory = MESSAGE_CATEGORIES.CONFIRM_ACTION
     analysis.intent = 'SUBMIT_FEEDBACK'
     analysis.requiredAction = 'SUBMIT_FEEDBACK'
+    analysis.shouldGenerateLLMReply = false
+    analysis.confidence = 1.0
+    return analysis
+  }
+  if (ACTION_PATTERNS.EDIT_COMPLAINT.test(normalizedMsg)) {
+    analysis.messageCategory = MESSAGE_CATEGORIES.BUTTON_ACTION
+    analysis.intent = 'EDIT_COMPLAINT'
+    analysis.requiredAction = 'EDIT_COMPLAINT'
+    analysis.shouldGenerateLLMReply = false
+    analysis.confidence = 1.0
+    return analysis
+  }
+  if (ACTION_PATTERNS.EDIT_FEEDBACK.test(normalizedMsg)) {
+    analysis.messageCategory = MESSAGE_CATEGORIES.BUTTON_ACTION
+    analysis.intent = 'EDIT_FEEDBACK'
+    analysis.requiredAction = 'EDIT_FEEDBACK'
     analysis.shouldGenerateLLMReply = false
     analysis.confidence = 1.0
     return analysis
@@ -458,6 +512,21 @@ const _detectNewRequestIntent = (msg, entities) => {
   // Feedback request
   if (/\b(give feedback|rate complaint|submit feedback|feedback for|star rating|rate teacher|rate faculty)\b/i.test(msg)) {
     return { intent: 'GIVE_FEEDBACK', confidence: 0.9 }
+  }
+
+  // Tracking explanation
+  if (/\b(how.*tracking works|how tracking works|how to track|tracking process|complaint lifecycle|how are complaints tracked)\b/i.test(msg)) {
+    return { intent: 'TRACKING_EXPLANATION', confidence: 0.95 }
+  }
+
+  // Duplicate check explanation
+  if (/\b(duplicate complaint check|how duplicate check works|duplicate detection|similar complaint|duplicate check)\b/i.test(msg)) {
+    return { intent: 'DUPLICATE_CHECK', confidence: 0.95 }
+  }
+
+  // AI Resolution prediction explanation
+  if (/\b(resolution prediction|how resolution prediction works|ai resolution prediction|predict resolution|resolution timeframe prediction)\b/i.test(msg)) {
+    return { intent: 'RESOLUTION_PREDICTION', confidence: 0.95 }
   }
 
   // Login help

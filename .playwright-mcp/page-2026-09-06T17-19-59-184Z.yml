@@ -1,0 +1,204 @@
+- generic [ref=e2]:
+  - button "Open CampusResolve AI Assistant"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "CR CampusResolve" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]: CR
+        - generic [ref=e7]: CampusResolve
+      - generic [ref=e8]:
+        - button "Switch to dark mode" [ref=e9] [cursor=pointer]
+        - link [ref=e12] [cursor=pointer]:
+          - /url: /login
+          - button "Portal Login" [ref=e13]
+    - main [ref=e19]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: Student Support Portal
+          - heading "CampusResolve Report a Problem. Get It Resolved." [level=1] [ref=e28]:
+            - text: CampusResolve
+            - generic [ref=e29]: Report a Problem. Get It Resolved.
+          - paragraph [ref=e30]: CampusResolve helps students report academic, hostel, and campus issues in one place. Track your complaint and get updates until the issue is resolved.
+          - generic [ref=e31]:
+            - link [ref=e32] [cursor=pointer]:
+              - /url: /login
+              - button "Launch Portal" [ref=e33]
+            - link [ref=e38] [cursor=pointer]:
+              - /url: "#features"
+              - button "Explore Features" [ref=e39]
+          - generic [ref=e41]:
+            - generic [ref=e42]: Easy Submission
+            - generic [ref=e47]: Track Complaint
+            - generic [ref=e51]: AI Assistance
+            - generic [ref=e55]: Safe & Secure
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]: Live Resolution Flow
+            - generic [ref=e69]: Support Portal
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]: "1"
+              - generic [ref=e73]:
+                - heading "Submit Complaints Easily" [level=4] [ref=e74]
+                - paragraph [ref=e75]: Report your problem quickly with the required details
+            - generic [ref=e76]:
+              - generic [ref=e77]: "2"
+              - generic [ref=e78]:
+                - heading "Track Your Complaint" [level=4] [ref=e79]
+                - paragraph [ref=e80]: Check the latest status and follow the progress of your complaint
+            - generic [ref=e81]:
+              - generic [ref=e82]: "3"
+              - generic [ref=e83]:
+                - heading "Get Help from AI" [level=4] [ref=e84]
+                - paragraph [ref=e85]: Use the AI Assistant to help create and manage your complaints
+            - generic [ref=e86]:
+              - generic [ref=e87]: "4"
+              - generic [ref=e88]:
+                - heading "Safe & Secure" [level=4] [ref=e89]
+                - paragraph [ref=e90]: Your personal information and complaint details are protected
+          - generic [ref=e91]:
+            - generic [ref=e92]: Target Resolution Time
+            - generic [ref=e96]: < 24 Hours
+      - generic [ref=e99]:
+        - generic [ref=e102]:
+          - generic [ref=e109]: 58+
+          - paragraph [ref=e110]: Total Students
+        - generic [ref=e113]:
+          - generic [ref=e118]: 24+
+          - paragraph [ref=e119]: Complaints Submitted
+        - generic [ref=e122]:
+          - generic [ref=e127]: 9%
+          - paragraph [ref=e128]: Resolution Rate
+        - generic [ref=e131]:
+          - generic [ref=e137]: "1"
+          - paragraph [ref=e138]: Departments
+        - generic [ref=e141]:
+          - generic [ref=e146]: 13+
+          - paragraph [ref=e147]: Faculty Members
+        - generic [ref=e150]:
+          - generic [ref=e155]: < 24h
+          - paragraph [ref=e156]: Average Resolution Time
+      - generic [ref=e158]:
+        - generic [ref=e159]:
+          - generic [ref=e160]: Core Capabilities
+          - heading "Built For Seamless Campus Operations" [level=2] [ref=e164]
+          - paragraph [ref=e165]: Engineered to replace manual physical paperwork with an automated, transparent, and responsive digital ecosystem.
+        - generic [ref=e166]:
+          - generic [ref=e169]:
+            - generic [ref=e170]:
+              - heading "Complaint Management" [level=3] [ref=e175]
+              - paragraph [ref=e176]: Structured complaint submission with auto-category classification, multi-file attachments, and priority tagging.
+            - button "Learn More" [ref=e178] [cursor=pointer]
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - heading "Real-Time Tracking" [level=3] [ref=e190]
+              - paragraph [ref=e191]: Instant status timeline updates (Submitted, Assigned, In Progress, Resolved, Escalated) via live WebSockets.
+            - button "Learn More" [ref=e193] [cursor=pointer]
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - heading "Department Assignment" [level=3] [ref=e207]
+              - paragraph [ref=e208]: Smart automated routing to specific CSE, ECE, MECH, EEE, AIDS, and IT faculty members based on complaint category.
+            - button "Learn More" [ref=e210] [cursor=pointer]
+          - generic [ref=e217]:
+            - generic [ref=e218]:
+              - heading "Secure Authentication" [level=3] [ref=e223]
+              - paragraph [ref=e224]: Enterprise security powered by JWT RS256 token rotation, password hashing, and Google Identity OAuth 2.0.
+            - button "Learn More" [ref=e226] [cursor=pointer]
+          - generic [ref=e233]:
+            - generic [ref=e234]:
+              - heading "Feedback System" [level=3] [ref=e238]
+              - paragraph [ref=e239]: Star ratings and qualitative feedback collection post-resolution to continuously monitor service quality.
+            - button "Learn More" [ref=e241] [cursor=pointer]
+          - generic [ref=e248]:
+            - generic [ref=e249]:
+              - heading "Analytics Dashboard" [level=3] [ref=e253]
+              - paragraph [ref=e254]: Comprehensive administrative metrics, SLA tracking graphs, sentiment analysis, and workload breakdown.
+            - button "Learn More" [ref=e256] [cursor=pointer]
+      - generic [ref=e262]:
+        - generic [ref=e263]:
+          - generic [ref=e264]: Seamless 5-Step Journey
+          - heading "How CampusResolve Works" [level=2] [ref=e270]
+          - paragraph [ref=e271]: From initial submission to final satisfaction feedback in 5 transparent steps.
+        - generic [ref=e272]:
+          - generic [ref=e276]:
+            - generic [ref=e277]: "01"
+            - heading "Authentication & Login" [level=3] [ref=e283]
+            - paragraph [ref=e284]: Securely sign in using your registered college email or OAuth Google credentials.
+          - generic [ref=e288]:
+            - generic [ref=e289]: "02"
+            - heading "Submit Complaint" [level=3] [ref=e295]
+            - paragraph [ref=e296]: Fill in issue details, choose department category, and upload optional file evidence.
+          - generic [ref=e300]:
+            - generic [ref=e301]: "03"
+            - heading "Admin Review & Triage" [level=3] [ref=e306]
+            - paragraph [ref=e307]: System & Admin verify priority level and assign to department faculty.
+          - generic [ref=e311]:
+            - generic [ref=e312]: "04"
+            - heading "Teacher Resolution" [level=3] [ref=e319]
+            - paragraph [ref=e320]: Assigned faculty updates status, posts remarks, and resolves the grievance within SLA.
+          - generic [ref=e324]:
+            - generic [ref=e325]: "05"
+            - heading "Student Feedback" [level=3] [ref=e330]
+            - paragraph [ref=e331]: Student reviews resolution summary and submits a star rating & feedback comment.
+      - generic [ref=e332]:
+        - generic [ref=e333]:
+          - generic [ref=e334]:
+            - generic [ref=e335]: Enterprise Advantages
+            - heading "Why Choose CampusResolve?" [level=2] [ref=e340]
+            - paragraph [ref=e341]: Built specifically for academic institutions requiring SLA accountability, data security, and audit trails.
+          - generic [ref=e342]:
+            - generic [ref=e344]:
+              - heading "Automated SLA Escalations" [level=3] [ref=e348]
+              - paragraph [ref=e349]: If an assigned complaint is not reviewed within 24 hours, the system automatically escalates priority and notifies department heads.
+            - generic [ref=e351]:
+              - heading "Live Timeline Audit Trail" [level=3] [ref=e356]
+              - paragraph [ref=e357]: Every status update, reassignment, and admin remark is timestamped and recorded in an immutable activity feed.
+            - generic [ref=e359]:
+              - heading "360° Quality Analytics" [level=3] [ref=e364]
+              - paragraph [ref=e365]: Real-time charts break down department workloads, resolution rates, and faculty sentiment metrics for continuous improvement.
+        - generic [ref=e367]:
+          - generic [ref=e369]:
+            - generic [ref=e377]:
+              - heading "Student Benefits" [level=3] [ref=e378]
+              - paragraph [ref=e379]: Empowering campus voices
+            - list [ref=e380]:
+              - listitem [ref=e381]:
+                - generic [ref=e385]: Submit complaints anytime from laptop or mobile.
+              - listitem [ref=e386]:
+                - generic [ref=e390]: Track live step-by-step progress without visiting offices.
+              - listitem [ref=e391]:
+                - generic [ref=e395]: Submit feedback ratings to rate resolution quality.
+              - listitem [ref=e396]:
+                - generic [ref=e400]: 24/7 AI Chatbot assistant to answer queries instantly.
+          - generic [ref=e402]:
+            - generic [ref=e408]:
+              - heading "Faculty & Admin Benefits" [level=3] [ref=e409]
+              - paragraph [ref=e410]: Streamlining resolution workflows
+            - list [ref=e411]:
+              - listitem [ref=e412]:
+                - generic [ref=e416]: Automated ticket assignment to designated department heads.
+              - listitem [ref=e417]:
+                - generic [ref=e421]: Centralized dashboard for tracking pending vs resolved tickets.
+              - listitem [ref=e422]:
+                - generic [ref=e426]: Comprehensive analytics reports for college accreditation.
+              - listitem [ref=e427]:
+                - generic [ref=e431]: Eliminates lost paperwork with secure cloud record archiving.
+      - generic [ref=e436]:
+        - heading "Ready To Experience CampusResolve?" [level=3] [ref=e437]
+        - paragraph [ref=e438]: Log in using your registered credentials to access instant complaint lodging, real-time tracking, and faculty responses.
+        - link [ref=e440] [cursor=pointer]:
+          - /url: /login
+          - button "Launch Portal Now" [ref=e441]
+      - generic [ref=e447]:
+        - generic [ref=e448]:
+          - generic [ref=e453]: Clear Answers
+          - heading "Frequently Asked Questions" [level=2] [ref=e454]
+          - paragraph [ref=e455]: Everything you need to know about CampusResolve features, privacy, and resolution SLAs.
+        - generic [ref=e456]:
+          - generic [ref=e459]:
+            - button "How long does it take for a complaint to be addressed?" [ref=e460] [cursor=pointer]
+            - generic [ref=e466]: Complaints are routed immediately to the designated department upon submission. The average initial response time is under 24 hours.
+          - button "Can I upload files or image evidence with my complaint?" [ref=e470] [cursor=pointer]
+          - button "Is my student account data protected?" [ref=e479] [cursor=pointer]
+          - button "How does the feedback rating system work?" [ref=e488] [cursor=pointer]
+          - button "What happens if a complaint remains pending for too long?" [ref=e497] [cursor=pointer]

@@ -41,6 +41,7 @@ const AppSidebar: React.FC = () => {
     role === 'admin'
       ? [
           { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
+          { to: '/admin/recommendations', label: 'AI Recommendations', icon: Sparkles },
           { to: '/admin/teachers', label: 'Faculty Directory', icon: GraduationCap },
           { to: '/admin/feedback', label: 'Feedback Inbox', icon: MessageSquare },
           { to: '/admin/analytics', label: 'Analytics & Trends', icon: BarChart3 },

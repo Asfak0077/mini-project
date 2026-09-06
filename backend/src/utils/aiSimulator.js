@@ -1,38 +1,84 @@
 /**
- * AI Engine — powered by Google Gemini API (gemini-1.5-flash)
- * Falls back gracefully to the rule-based simulator if the key is missing or the API call fails.
+ * AI Engine — Powered by NVIDIA NIM API & Google Gemini API
+ * Primary: NVIDIA NIM (meta/llama-3.2-11b-vision-instruct, nvapi-...)
+ * Fallback: Google Gemini API (gemini-1.5-flash)
+ * Local Fallback: Rule-based Heuristic Engine
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai')
+const OpenAI = require('openai')
 
-// ── Gemini setup ─────────────────────────────────────────────────────────────
+// ── NVIDIA NIM Configuration ──────────────────────────────────────────────────
+const NVIDIA_KEY = process.env.NVIDIA_API_KEY
+const NVIDIA_BASE_URL = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'
+const NVIDIA_CHAT_MODEL = process.env.NVIDIA_CHAT_MODEL || 'meta/llama-3.2-11b-vision-instruct'
+
+let nvidiaClient = null
+if (NVIDIA_KEY) {
+  try {
+    nvidiaClient = new OpenAI({
+      apiKey: NVIDIA_KEY,
+      baseURL: NVIDIA_BASE_URL
+    })
+    console.log(`[AI] NVIDIA NIM ready ✅ (${NVIDIA_CHAT_MODEL})`)
+  } catch (e) {
+    console.warn('[AI] NVIDIA NIM client init failed:', e.message)
+  }
+}
+
+// ── Google Gemini Configuration ───────────────────────────────────────────────
 const GEMINI_KEY = process.env.GEMINI_API_KEY
 let geminiModel = null
 
 if (GEMINI_KEY) {
   try {
     const genAI = new GoogleGenerativeAI(GEMINI_KEY)
-    geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    console.log('[AI] Gemini 2.0 Flash ready ✅')
+    geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    console.log('[AI] Gemini 1.5 Flash ready ✅')
   } catch (e) {
-    console.warn('[AI] Gemini init failed, using rule-based fallback:', e.message)
+    console.warn('[AI] Gemini init failed:', e.message)
   }
-} else {
-  console.warn('[AI] GEMINI_API_KEY not set — using rule-based fallback')
 }
 
 /**
- * Ask Gemini a question; returns null on any error so callers can fall back.
+ * Ask AI (tries NVIDIA NIM first, then Gemini, falls back gracefully)
  */
 const askGemini = async (prompt) => {
-  if (!geminiModel) return null
-  try {
-    const result = await geminiModel.generateContent(prompt)
-    return result.response.text().trim()
-  } catch (err) {
-    console.warn('[AI] Gemini call failed:', err.message)
-    return null
+  // 1. Try NVIDIA NIM API with 6s timeout
+  if (nvidiaClient) {
+    try {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('NVIDIA NIM call took >6s')), 6000)
+      )
+      const callPromise = nvidiaClient.chat.completions.create({
+        model: NVIDIA_CHAT_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        max_tokens: 800
+      })
+      const response = await Promise.race([callPromise, timeoutPromise])
+      const content = response.choices?.[0]?.message?.content
+      if (content && typeof content === 'string' && content.trim().length > 0) {
+        return content.trim()
+      }
+    } catch (err) {
+      console.warn('[AI] NVIDIA NIM call failed/slow, trying Gemini fallback:', err.message)
+    }
   }
+
+  // 2. Try Google Gemini
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+      const primary = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      const result = await primary.generateContent(prompt)
+      return result.response.text().trim()
+    } catch (err) {
+      console.warn('[AI] Gemini call failed:', err.message)
+    }
+  }
+
+  return null
 }
 
 // ── Rule-based fallbacks ──────────────────────────────────────────────────────

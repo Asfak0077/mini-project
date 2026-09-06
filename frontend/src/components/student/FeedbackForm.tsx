@@ -22,7 +22,7 @@ import {
   ResolutionStatusOption
 } from '../../services/feedbackService'
 import { fetchStudentComplaints, updateComplaintStatus } from '../../services/complaintService'
-import { enhanceFeedbackText } from '../../services/chatbotService'
+import { enhanceFeedbackText, analyzeFeedbackText } from '../../services/chatbotService'
 import { Button } from '../ui/Button'
 import ComplaintIdBadge, { formatDisplayComplaintId } from '../shared/ComplaintIdBadge'
 
@@ -40,9 +40,9 @@ const OVERALL_RATING_LABELS: Record<number, { label: string; color: string; bg: 
 }
 
 const RESOLUTION_QUALITY_LABELS: Record<number, string> = {
-  1: 'Not Resolved',
+  1: 'Very Poor',
   2: 'Poor',
-  3: 'Acceptable',
+  3: 'Average',
   4: 'Good',
   5: 'Excellent'
 }
@@ -56,8 +56,8 @@ const RESPONSE_TIME_LABELS: Record<number, string> = {
 }
 
 const COMMUNICATION_LABELS: Record<number, string> = {
-  1: 'Very Poor',
-  2: 'Poor',
+  1: 'Poor',
+  2: 'Fair',
   3: 'Average',
   4: 'Good',
   5: 'Excellent'
@@ -123,6 +123,8 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [aiMode, setAiMode] = useState<'improve' | 'detailed' | 'short' | 'professional'>('improve')
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
+  const [sentimentAnalysis, setSentimentAnalysis] = useState<any | null>(null)
+  const [isAnalyzingSentiment, setIsAnalyzingSentiment] = useState(false)
 
   // Draft & Notification States
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null)
@@ -236,6 +238,30 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
 
   const dismissAiSuggestion = () => {
     setAiSuggestion(null)
+  }
+
+  // ── AI Sentiment & Quality Analysis Action ──
+  const handleAnalyzeSentiment = async () => {
+    const textToAnalyze = draft.feedbackText.trim()
+    if (!textToAnalyze) {
+      setErrorMessage('Please type some feedback text to analyze.')
+      return
+    }
+    setErrorMessage('')
+    setIsAnalyzingSentiment(true)
+    try {
+      const res = await analyzeFeedbackText(textToAnalyze)
+      if (res) {
+        setSentimentAnalysis(res)
+        showToast('✓ AI sentiment & resolution quality analysis completed.', 'success')
+      } else {
+        showToast('Could not complete sentiment analysis at this time.', 'info')
+      }
+    } catch {
+      showToast('Sentiment analysis temporarily unavailable.', 'error')
+    } finally {
+      setIsAnalyzingSentiment(false)
+    }
   }
 
   // ── Positive & Improvement Tag Toggle ──
@@ -515,9 +541,9 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
                 </span>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
                     <ComplaintIdBadge
                       complaintId={selectedComplaint.complaintId}
                       id={selectedComplaint.id}
@@ -527,25 +553,34 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
                       {selectedComplaint.title || 'Resolved Grievance'}
                     </h3>
                   </div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Category: <span className="text-slate-800 dark:text-slate-200 font-bold">{selectedComplaint.category}</span>
-                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs pt-3 border-t border-slate-200/80 dark:border-slate-700/80">
                   <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">Department</span>
-                    <span className="font-extrabold text-slate-900 dark:text-white">{selectedComplaint.department || 'CSE'}</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider">Complaint ID</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white font-mono">{formatDisplayComplaintId(selectedComplaint.complaintId || selectedComplaint.ticketNumber || selectedComplaint.id)}</span>
                   </div>
                   <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">Handled By</span>
-                    <span className="font-extrabold text-slate-900 dark:text-white">
-                      {selectedComplaint.assignedTeacherName || 'Dr. Rajesh Kumar'}
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider">Category</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{selectedComplaint.category}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider">Location</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{selectedComplaint.location || 'Main Campus'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider">Department</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{selectedComplaint.department || 'General'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider">Submitted Date</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                      {selectedComplaint.createdAt ? new Date(selectedComplaint.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                     </span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">Resolved On</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">{formattedResolvedDate}</span>
+                  <div>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider">Resolved Date</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{formattedResolvedDate}</span>
                   </div>
                 </div>
               </div>
@@ -892,10 +927,9 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
 
           <div className="flex flex-wrap gap-2">
             {[
-              { mode: 'improve' as const, label: 'Improve Writing', icon: Wand2 },
-              { mode: 'detailed' as const, label: 'Make It More Detailed', icon: MessageSquare },
-              { mode: 'short' as const, label: 'Make It Shorter', icon: CornerDownRight },
-              { mode: 'professional' as const, label: 'Make It More Professional', icon: Award }
+              { mode: 'improve' as const, label: 'Improve My Feedback', icon: Wand2 },
+              { mode: 'professional' as const, label: 'Make It More Professional', icon: Award },
+              { mode: 'short' as const, label: 'Make It Shorter', icon: CornerDownRight }
             ].map((btn) => {
               const Icon = btn.icon
               const isCurrent = isAiLoading && aiMode === btn.mode
@@ -912,7 +946,65 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
                 </button>
               )
             })}
+
+            <button
+              type="button"
+              disabled={isAnalyzingSentiment || !draft.feedbackText.trim()}
+              onClick={handleAnalyzeSentiment}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isAnalyzingSentiment ? 'animate-spin text-indigo-600' : ''}`} />
+              <span>{isAnalyzingSentiment ? 'Analyzing...' : 'Analyze Sentiment'}</span>
+            </button>
           </div>
+
+          {/* AI Sentiment Analysis Card */}
+          <AnimatePresence>
+            {sentimentAnalysis && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="p-4 sm:p-5 rounded-xl bg-white dark:bg-[#131d2c] border-2 border-indigo-400 dark:border-indigo-600 shadow-md space-y-3 text-left"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" /> AI Feedback Summary
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSentimentAnalysis(null)}
+                    className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                    <span className="text-[10.5px] font-bold text-slate-400 block">Sentiment</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{sentimentAnalysis.sentiment}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                    <span className="text-[10.5px] font-bold text-slate-400 block">Resolution Quality</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{sentimentAnalysis.resolutionQuality}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                    <span className="text-[10.5px] font-bold text-slate-400 block">Response Time</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{sentimentAnalysis.responseTime}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                    <span className="text-[10.5px] font-bold text-slate-400 block">Communication</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">{sentimentAnalysis.communication}</span>
+                  </div>
+                </div>
+                {sentimentAnalysis.summary && (
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300 pt-1">
+                    <strong>Summary:</strong> {sentimentAnalysis.summary}
+                  </p>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* AI Suggestion Card Slide-in */}
           <AnimatePresence>
@@ -1209,6 +1301,19 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
               className="flex-1 sm:flex-none text-xs font-bold"
             >
               Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={() => {
+                const el = document.getElementById('feedback-textarea')
+                el?.focus()
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }}
+              className="flex-1 sm:flex-none text-xs font-bold"
+            >
+              Edit Feedback
             </Button>
             <Button
               type="button"

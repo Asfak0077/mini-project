@@ -170,7 +170,8 @@ router.post('/message', async (req, res) => {
       history = [],
       actionType = null,
       requestId = null,
-      previousAssistantMessage = ''
+      previousAssistantMessage = '',
+      isVoiceMode = false
     } = req.body
 
     if (!message && !actionType) {
@@ -191,7 +192,8 @@ router.post('/message', async (req, res) => {
       history,
       actionType,
       requestId,
-      previousAssistantMessage
+      previousAssistantMessage,
+      isVoiceMode: Boolean(isVoiceMode)
     })
 
     // Async chat log persistence
@@ -659,6 +661,21 @@ router.post('/enhance-text', async (req, res) => {
   } catch (error) {
     console.error('Enhance text error:', error)
     res.status(500).json({ error: 'Failed to enhance text' })
+  }
+})
+
+// ─── POST /api/chatbot/analyze-feedback ──────────────────────────────────────
+router.post('/analyze-feedback', async (req, res) => {
+  try {
+    const text = (req.body.text || req.body.feedbackText || '').trim()
+    if (!text) {
+      return res.status(400).json({ error: 'Feedback text is required' })
+    }
+    const analysis = await analyzeFeedback(text.trim())
+    res.json({ success: true, analysis })
+  } catch (error) {
+    console.error('Analyze feedback error:', error)
+    res.status(500).json({ error: 'Failed to analyze feedback' })
   }
 })
 

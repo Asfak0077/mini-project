@@ -22,6 +22,7 @@ const {
   sendComplaintResolvedEmail
 } = require('../services/emailService')
 const { predictComplaintResolution } = require('../utils/aiSimulator')
+const { analyzeComplaintIntelligence } = require('../services/aiIntelligenceService')
 
 const router = express.Router()
 
@@ -318,6 +319,11 @@ router.post('/create', protect, async (req, res) => {
       })
       await sendComplaintAssignedEmails(complaint, teacherAssigned)
     }
+
+    // Trigger asynchronous AI intelligence analysis in background (non-blocking)
+    analyzeComplaintIntelligence(complaint, { force: true }).catch((aiErr) =>
+      console.warn('[AI Intelligence Background Trigger /create]:', aiErr.message)
+    )
 
     res.status(201).json({
       message: 'Complaint created successfully',
@@ -755,6 +761,11 @@ router.put('/:complaintId/assign', async (req, res) => {
     // Send email notification
     await sendComplaintAssignedEmails(complaint, teacher)
 
+    // Trigger asynchronous AI intelligence analysis in background
+    analyzeComplaintIntelligence(complaint, { force: true }).catch((aiErr) =>
+      console.warn('[AI Intelligence Background Trigger /assign]:', aiErr.message)
+    )
+
     res.json({
       message: isReassign ? 'Complaint reassigned successfully' : 'Complaint assigned successfully',
       complaint
@@ -1058,6 +1069,11 @@ router.put('/:complaintId/update-status', async (req, res) => {
         console.error('[STATUS_UPDATE_EMAIL_ERROR]', err.message)
       )
     }
+
+    // Trigger asynchronous AI intelligence analysis in background
+    analyzeComplaintIntelligence(complaint, { force: true }).catch((aiErr) =>
+      console.warn('[AI Intelligence Background Trigger /update-status]:', aiErr.message)
+    )
 
     res.json({
       message: 'Complaint status updated successfully',

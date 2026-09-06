@@ -4,7 +4,8 @@ import {
   X, Send, Mic, MicOff, Bot,
   Maximize2, Minimize2, Sparkles,
   RefreshCw, RotateCcw, Copy, Check,
-  AlertCircle, ChevronRight, Edit3, ArrowDown, Star, Lock, LogIn
+  AlertCircle, ChevronRight, Edit3, ArrowDown, Star, Lock, LogIn, MoreVertical,
+  Headphones, Volume2, VolumeX, Radio, Square
 } from 'lucide-react'
 
 import {
@@ -26,6 +27,14 @@ import { useAuthStore } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import { UserAvatar } from '../ui/Avatar'
 import { ChatMessageContent } from './ChatMessageContent'
+import { speechRecognitionService } from '../../services/voice/speechRecognitionService'
+import { textToSpeechService } from '../../services/voice/textToSpeechService'
+import { voiceConversationController } from '../../services/voice/voiceConversationController'
+import { VoiceState, VoiceMode, PlaybackState, VoiceAgentSettings } from '../../services/voice/voiceTypes'
+import { VoiceVisualizer } from './VoiceVisualizer'
+import { VoiceConversationModal } from './VoiceConversationModal'
+import { intentClassifier } from '../../services/ai/intentClassifier'
+import { agentOrchestrator } from '../../services/voice/agentOrchestrator'
 
 /* ─── Suggested Prompts for Empty Chat ─────────────────────────────────── */
 const GUEST_SUGGESTED_PROMPTS = [
@@ -114,13 +123,27 @@ export const ChatAssistant: React.FC = () => {
   const [conversationState, setConversationState] = useState<ConversationState>('IDLE')
   const [complaintDraft, setComplaintDraft] = useState<StructuredComplaint | null>(null)
   const [feedbackDraft, setFeedbackDraft] = useState<StructuredFeedback | null>(null)
-  const [isListening, setIsListening] = useState(false)
   const [isEnhancing, setIsEnhancing] = useState(false)
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [lastErrorPrompt, setLastErrorPrompt] = useState<string | null>(null)
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false)
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
   const [isJoiningComplaint, setIsJoiningComplaint] = useState(false)
+  const [activeMenuMsgId, setActiveMenuMsgId] = useState<string | null>(null)
+
+  // ─── Voice-First AI Agent State ────────────────────────────────────────────
+  const [voiceState, setVoiceState] = useState<VoiceState>('IDLE')
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>('CONTINUOUS')
+  const [playbackState, setPlaybackState] = useState<PlaybackState>('STOPPED')
+  const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false)
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false)
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null)
+  const [latestUserTranscript, setLatestUserTranscript] = useState<string>('')
+  const [latestAIText, setLatestAIText] = useState<string>('')
+  const [voicePermissionError, setVoicePermissionError] = useState<string | null>(null)
+  const [isAutoSpeakEnabled, setIsAutoSpeakEnabled] = useState<boolean>(false)
+  const [audioLevel, setAudioLevel] = useState<number>(0)
+  const [voiceSettings, setVoiceSettings] = useState<VoiceAgentSettings>(voiceConversationController.getSettings())
 
   // Edit Complaint Modal State
   const [editingDraft, setEditingDraft] = useState<StructuredComplaint | null>(null)
@@ -171,9 +194,6 @@ export const ChatAssistant: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const isUserNearBottomRef = useRef<boolean>(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const recognitionRef = useRef<any>(null)
-
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
 
   // Helper to add a message once and deduplicate by ID
   const appendMessageSafely = useCallback((msg: ChatMessage) => {
@@ -187,25 +207,89 @@ export const ChatAssistant: React.FC = () => {
     })
   }, [])
 
-  // Initialize Speech Recognition
+  // Ref to always access latest handleSend function without stale closure
+  const handleSendRef = useRef<(text: string, actionType?: string | null, isFromVoice?: boolean) => Promise<void>>()
   useEffect(() => {
-    if (SpeechRecognition) {
-      try {
-        recognitionRef.current = new SpeechRecognition()
-        recognitionRef.current.continuous = false
-        recognitionRef.current.interimResults = false
-        recognitionRef.current.onresult = (e: any) => {
-          const transcript = e.results[0][0].transcript
+    handleSendRef.current = handleSend
+  })
+
+  // ─── Synchronize Voice-First AI Services (STT, TTS, VAD, Barge-in) ────────
+  useEffect(() => {
+    // Register voice conversation controller callbacks
+    voiceConversationController.registerCallbacks({
+      onStateChange: (state) => {
+        setVoiceState(state)
+      },
+      onTranscriptUpdate: (transcript, isFinal) => {
+        setLatestUserTranscript(transcript)
+        // Only set inputValue for non-auto-submit mode (legacy fallback)
+        if (!voiceSettings.autoSubmitSpeech) {
           setInputValue(transcript)
-          setIsListening(false)
         }
-        recognitionRef.current.onerror = () => setIsListening(false)
-        recognitionRef.current.onend = () => setIsListening(false)
-      } catch {
-        // speech recognition not supported
+      },
+      onUserMessageReady: async (transcript) => {
+        // Voice-first: auto-send recognized speech to AI pipeline via latest handleSend ref
+        const textToProcess = transcript.trim()
+        if (textToProcess) {
+          if (handleSendRef.current) {
+            await handleSendRef.current(textToProcess, null, true)
+          }
+        }
+      },
+      onError: (err) => {
+        setVoiceState('ERROR')
+        if (err.isPermissionDenied) {
+          setVoicePermissionError(err.message)
+        }
+      },
+      onBargeIn: () => {
+        // Barge-in occurred: AI was interrupted by user
+        setPlaybackState('STOPPED')
+        setSpeakingMsgId(null)
+      },
+      onAudioLevel: (level) => {
+        setAudioLevel(level)
+      },
+      onSpeechStart: () => {
+        // If AI is speaking and user starts talking → barge-in already handled by controller
+      },
+      onSpeechEnd: () => {
+        // Silence detected after user speech — controller handles auto-send
       }
+    })
+
+    // TTS callbacks still needed for UI state sync
+    textToSpeechService.onStart = (msgId) => {
+      setPlaybackState('PLAYING')
+      setSpeakingMsgId(msgId)
+      setVoiceState('AI_SPEAKING')
     }
-  }, [SpeechRecognition])
+
+    textToSpeechService.onEnd = () => {
+      setPlaybackState('STOPPED')
+      setSpeakingMsgId(null)
+      // State transition handled by voiceConversationController
+    }
+
+    textToSpeechService.onPause = () => {
+      setPlaybackState('PAUSED')
+    }
+
+    textToSpeechService.onResume = () => {
+      setPlaybackState('PLAYING')
+      setVoiceState('AI_SPEAKING')
+    }
+
+    textToSpeechService.onError = () => {
+      setPlaybackState('STOPPED')
+      setSpeakingMsgId(null)
+    }
+
+    return () => {
+      speechRecognitionService.stopListening()
+      textToSpeechService.stop()
+    }
+  }, [isVoiceModalOpen, voiceMode, voiceSettings.autoSubmitSpeech, conversationState])
 
   // Authentication-Aware Chat State Lifecycle
   useEffect(() => {
@@ -295,9 +379,133 @@ export const ChatAssistant: React.FC = () => {
   }
 
   // ─── SEND MESSAGE HANDLER (DEDUPLICATED & THREAD-SAFE) ──────────────────────
-  const handleSend = async (textToSend: string, actionType?: string | null) => {
+  const handleSend = async (textToSend: string, actionType?: string | null, isFromVoice?: boolean) => {
     const prompt = textToSend.trim()
     if (!prompt && !actionType) return
+
+    // ── Voice Control Direct Commands ──
+    if (isFromVoice || isVoiceModalOpen) {
+      if (/^(stop speaking|be quiet|shut up)$/i.test(prompt)) {
+        textToSpeechService.stop()
+        return
+      }
+      if (/^(mute)$/i.test(prompt)) {
+        setIsVoiceMuted(true)
+        textToSpeechService.mute()
+        return
+      }
+      if (/^(unmute)$/i.test(prompt)) {
+        setIsVoiceMuted(false)
+        textToSpeechService.unmute()
+        return
+      }
+      if (/speak slower/i.test(prompt)) {
+        handleUpdateVoiceSettings({ speechSpeed: 'slow' })
+        textToSpeechService.speak('I will speak slower now.', null)
+        return
+      }
+      if (/speak faster/i.test(prompt)) {
+        handleUpdateVoiceSettings({ speechSpeed: 'fast' })
+        textToSpeechService.speak('I will speak faster now.', null)
+        return
+      }
+    }
+
+    // ── Central Agent Orchestrator: Active Workflow & Multi-Turn Agents ──
+    const activeWf = agentOrchestrator.getActiveWorkflow()
+    const isComplaintStart = /^(create a complaint|create complaint|new complaint|report an issue|file a complaint|register complaint|lodge a complaint|i want to report a problem|help me create a complaint)$/i.test(prompt)
+    const isDirectIssue = /\b(is not working|broken|leaking|damaged|flickering|not cooling|dirty|jammed)\b/i.test(prompt) && !/status|history|search|pending/i.test(prompt)
+    const isFeedbackStart = /^(give feedback|leave feedback|rate complaint|feedback|submit feedback|rate resolution)$/i.test(prompt)
+    const isResumeOrCancel = /^(cancel|stop|nevermind|pause|continue|resume|continue my complaint)$/i.test(prompt)
+
+    if (activeWf || isComplaintStart || isDirectIssue || isFeedbackStart || isResumeOrCancel) {
+      if (prompt && !actionType) {
+        const userMsgId = generateUniqueId('u')
+        appendMessageSafely({
+          id: userMsgId,
+          messageType: 'USER_TEXT',
+          text: prompt,
+          sender: 'user',
+          timestamp: new Date()
+        })
+      }
+      setInputValue('')
+      setIsTyping(true)
+
+      try {
+        const agentRes = await agentOrchestrator.processMessage(prompt, async (act) => {
+          if (act.type === 'CREATE_COMPLAINT') {
+            const draft = act.payload
+            const res = await createComplaintFromChat({
+              title: draft.title || `${draft.category || 'Infrastructure'} Issue`,
+              category: draft.category || 'Infrastructure',
+              department: draft.department || user?.department || 'CSE',
+              location: draft.location || '',
+              priority: draft.priority || 'medium',
+              description: draft.description || ''
+            })
+            setComplaintDraft(null)
+            setConversationState('IDLE')
+            return { complaintId: res.complaint?.complaintId || 'Registered' }
+          }
+          if (act.type === 'SUBMIT_FEEDBACK') {
+            const fb = act.payload
+            await submitFeedbackFromChat({
+              complaintId: fb.complaintId,
+              rating: fb.rating || 5,
+              comment: fb.feedbackText || '',
+              category: 'Resolution Satisfaction'
+            })
+            setFeedbackDraft(null)
+            setConversationState('IDLE')
+            return { success: true }
+          }
+          if (act.type === 'NAVIGATE') {
+            navigate(act.payload.path)
+            return { success: true }
+          }
+          if (act.type === 'VIEW_COMPLAINT') {
+            if (act.payload.viewPending) {
+              handleQuickActionClick('Show my pending complaints')
+            } else if (act.payload.complaintId) {
+              handleQuickActionClick(`Status of ${act.payload.complaintId}`)
+            }
+            return { success: true }
+          }
+        })
+
+        if (agentRes.screenResponse) {
+          const botMsgId = generateUniqueId('b')
+          appendMessageSafely({
+            id: botMsgId,
+            messageType: agentRes.requiresConfirmation ? 'COMPLAINT_PREVIEW' : 'AI_TEXT',
+            text: agentRes.screenResponse,
+            spokenText: agentRes.voiceResponse,
+            sender: 'bot',
+            timestamp: new Date(),
+            quickActions: agentRes.quickActions,
+            structuredComplaint: agentRes.complaintDraft as any
+          })
+
+          if (agentRes.complaintDraft) {
+            setComplaintDraft(agentRes.complaintDraft as any)
+          }
+          if (agentRes.navigationTarget) {
+            navigate(agentRes.navigationTarget)
+          }
+
+          setLatestAIText(agentRes.voiceResponse)
+          if (isFromVoice || isVoiceModalOpen || isAutoSpeakEnabled) {
+            voiceConversationController.speakAIResponse(agentRes.voiceResponse, botMsgId)
+          }
+          return
+        }
+      } catch (err) {
+        console.error('[AgentOrchestrator] Turn processing error:', err)
+      } finally {
+        setIsTyping(false)
+      }
+    }
 
     // Prevent duplicate simultaneous requests
     if (isRequestPendingRef.current) {
@@ -348,7 +556,8 @@ export const ChatAssistant: React.FC = () => {
         history: historyPayload,
         actionType: actionType || null,
         requestId,
-        previousAssistantMessage
+        previousAssistantMessage,
+        isVoiceMode: Boolean(isFromVoice || isVoiceModalOpen || isAutoSpeakEnabled)
       })
 
       // Verify request was not already processed
@@ -364,10 +573,14 @@ export const ChatAssistant: React.FC = () => {
       if (res?.structuredComplaint) setComplaintDraft(res.structuredComplaint)
 
       const botMsgId = generateUniqueId('b')
+      const spokenTextToSpeak = res?.spokenText || textToSpeechService.cleanTextForSpeech(res?.text || '')
+      setLatestAIText(spokenTextToSpeak)
+
       const botMsg: ChatMessage = {
         id: botMsgId,
         messageType: res?.messageType || (res?.structuredFeedback ? 'FEEDBACK_ANALYSIS' : (res?.structuredComplaint ? 'COMPLAINT_PREVIEW' : 'AI_TEXT')),
         text: res?.text || "I'm here to assist you.",
+        spokenText: spokenTextToSpeak,
         sender: 'bot',
         timestamp: new Date(),
         quickActions: res?.quickActions,
@@ -380,7 +593,21 @@ export const ChatAssistant: React.FC = () => {
         widgetData: res?.widgetData
       }
 
+      if (res?.queryResults && Array.isArray(res.queryResults)) {
+        agentOrchestrator.setRecentResults(
+          res.queryResults.map((c: any) => ({
+            id: c.complaintId || c._id,
+            title: c.title || c.category || 'Complaint'
+          }))
+        )
+      }
+
       appendMessageSafely(botMsg)
+
+      // Spoken voice response if voice mode or mic input was used
+      if (isFromVoice || isVoiceModalOpen || isAutoSpeakEnabled) {
+        textToSpeechService.speak(spokenTextToSpeak, botMsgId)
+      }
     } catch {
       setLastErrorPrompt(prompt)
       const errorMsgId = generateUniqueId('err')
@@ -388,10 +615,14 @@ export const ChatAssistant: React.FC = () => {
         id: errorMsgId,
         messageType: 'ERROR_MESSAGE',
         text: "Sorry, I couldn't process that request. Please try again.",
+        spokenText: "Sorry, I couldn't process that request. Please try again.",
         sender: 'bot',
         timestamp: new Date()
       }
       appendMessageSafely(errorMsg)
+      if (isFromVoice || isVoiceModalOpen || isAutoSpeakEnabled) {
+        textToSpeechService.speak("Sorry, I couldn't process that request. Please try again.", errorMsgId)
+      }
     } finally {
       setIsTyping(false)
       isRequestPendingRef.current = false
@@ -961,17 +1192,88 @@ export const ChatAssistant: React.FC = () => {
     }
   }
 
-  // Toggle Voice Input
-  const toggleListen = () => {
-    if (!SpeechRecognition || !recognitionRef.current) return
-    if (isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
+  // ─── Voice-First AI Handlers ─────────────────────────────────────────────
+  const handleToggleListen = () => {
+    if (voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING' || voiceState === 'TRANSCRIBING' || voiceState === 'SILENCE_DETECTED') {
+      speechRecognitionService.stopListening()
     } else {
-      recognitionRef.current.start()
-      setIsListening(true)
+      if (playbackState === 'PLAYING') {
+        textToSpeechService.stop()
+      }
+      setVoicePermissionError(null)
+      setIsAutoSpeakEnabled(true)
+      speechRecognitionService.startListening()
     }
   }
+
+  const handleUpdateVoiceSettings = (partial: Partial<VoiceAgentSettings>) => {
+    voiceConversationController.updateSettings(partial)
+    setVoiceSettings(voiceConversationController.getSettings())
+  }
+
+  const handleEditTranscript = (text: string) => {
+    // User manually edited the transcript — send the corrected version
+    handleSend(text, null, true)
+  }
+
+  const handleRetryTranscript = () => {
+    // Re-listen for the same request
+    speechRecognitionService.startListening()
+  }
+
+  const handleStartListen = () => {
+    if (playbackState === 'PLAYING') {
+      textToSpeechService.stop()
+    }
+    setVoicePermissionError(null)
+    speechRecognitionService.startListening()
+  }
+
+  const handleStopListen = () => {
+    speechRecognitionService.stopListening()
+  }
+
+  const handleToggleMute = () => {
+    const nextMuted = !isVoiceMuted
+    setIsVoiceMuted(nextMuted)
+    if (nextMuted) {
+      textToSpeechService.mute()
+    } else {
+      textToSpeechService.unmute()
+    }
+  }
+
+  const handleCloseVoiceModal = () => {
+    setIsVoiceModalOpen(false)
+    speechRecognitionService.stopListening()
+    textToSpeechService.stop()
+    voiceConversationController.endVoiceSession()
+  }
+
+  const handleSpeakMessage = (msgId: string, text: string) => {
+    if (speakingMsgId === msgId && playbackState === 'PLAYING') {
+      textToSpeechService.stop()
+    } else {
+      textToSpeechService.speak(text, msgId)
+    }
+  }
+
+  // Keyboard shortcut: Escape cancels recording, stops speech, or closes voice modal
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isVoiceModalOpen) {
+          handleCloseVoiceModal()
+        } else if (voiceState === 'LISTENING' || voiceState === 'TRANSCRIBING') {
+          handleStopListen()
+        } else if (playbackState === 'PLAYING') {
+          textToSpeechService.stop()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [isVoiceModalOpen, voiceState, playbackState])
 
   // Reset / Clear Session
   const resetSession = () => {
@@ -1040,19 +1342,32 @@ export const ChatAssistant: React.FC = () => {
                     {isAuthenticated ? (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">AI Online • Personalized Assistance</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">Personalized assistance enabled.</span>
                       </>
                     ) : (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                        <span className="text-slate-600 dark:text-slate-400 font-medium">🔒 Guest Mode • Login required for personal data</span>
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">Guest Mode</span>
                       </>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVoiceModalOpen(true)
+                    voiceConversationController.startVoiceSession('CONTINUOUS')
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800/80 transition-all cursor-pointer shadow-2xs mr-1"
+                  title="Open Voice Conversation Mode"
+                >
+                  <Headphones className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 animate-pulse" />
+                  <span className="hidden sm:inline">Voice Agent</span>
+                </button>
+
                 <button
                   onClick={resetSession}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
@@ -1076,6 +1391,22 @@ export const ChatAssistant: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* ══ GUEST MODE BANNER ══ */}
+            {!isAuthenticated && (
+              <div className="px-4 py-2 bg-amber-50/90 dark:bg-amber-950/50 border-b border-amber-200/80 dark:border-amber-900/60 text-[11px] text-amber-900 dark:text-amber-200 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="truncate font-medium">Log in to view your complaints, status updates, feedback history, and personalized AI insights.</span>
+                </div>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-2.5 py-0.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10.5px] shrink-0 cursor-pointer shadow-2xs"
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
 
             {/* ══ MESSAGE LIST CONTAINER ══ */}
             <div
@@ -1173,6 +1504,9 @@ export const ChatAssistant: React.FC = () => {
                           isSubmittingDraft={isSubmittingDraft}
                           isSubmittingFeedback={isSubmittingFeedback}
                           isJoiningComplaint={isJoiningComplaint}
+                          isSpeaking={speakingMsgId === msg.id && playbackState === 'PLAYING'}
+                          onSpeak={(text) => handleSpeakMessage(msg.id, text)}
+                          onStopSpeak={() => textToSpeechService.stop()}
                         />
 
                       </div>
@@ -1182,25 +1516,65 @@ export const ChatAssistant: React.FC = () => {
                     <div className={`flex items-center gap-2 mt-1 mx-8 sm:mx-9 text-[10.5px] text-slate-400 dark:text-slate-500 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
 
-                      {msg.sender === 'bot' && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyMessage(msg.id, msg.text)}
-                            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                            title="Copy response"
-                          >
-                            {copiedMsgId === msg.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                          </button>
-                          <button
-                            onClick={handleRegenerate}
-                            disabled={isTyping}
-                            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer disabled:opacity-40"
-                            title="Regenerate response"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
+                      <div className="relative flex items-center gap-1">
+                        {msg.sender === 'bot' && (
+                          <>
+                            <button
+                              onClick={() => handleCopyMessage(msg.id, msg.text)}
+                              className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                              title="Copy response"
+                            >
+                              {copiedMsgId === msg.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                            <button
+                              onClick={handleRegenerate}
+                              disabled={isTyping}
+                              className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer disabled:opacity-40"
+                              title="Regenerate response"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Action Menu Button */}
+                        <button
+                          onClick={() => setActiveMenuMsgId(activeMenuMsgId === msg.id ? null : msg.id)}
+                          className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
+                          title="Message options"
+                        >
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+
+                        {/* Action Menu Dropdown */}
+                        {activeMenuMsgId === msg.id && (
+                          <div className="absolute top-5 z-30 min-w-[130px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
+                            <button
+                              onClick={() => {
+                                handleCopyMessage(msg.id, msg.text)
+                                setActiveMenuMsgId(null)
+                              }}
+                              className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Copy className="w-3 h-3" />
+                              <span>Copy Text</span>
+                            </button>
+                            {msg.sender === 'bot' && (
+                              <button
+                                onClick={() => {
+                                  handleRegenerate()
+                                  setActiveMenuMsgId(null)
+                                }}
+                                disabled={isTyping}
+                                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Retry / Redo</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Quick Action Chips */}
@@ -1292,6 +1666,54 @@ export const ChatAssistant: React.FC = () => {
             {/* ══ STICKY CHAT COMPOSER ══ */}
             <div className="p-3 sm:p-3.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
               <div className="w-full max-w-3xl mx-auto space-y-1.5">
+                {/* ══ VOICE VISUALIZER BANNER ══ */}
+                <AnimatePresence>
+                  {(voiceState !== 'IDLE' || playbackState !== 'STOPPED') && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-1.5"
+                    >
+                      <VoiceVisualizer
+                        voiceState={voiceState}
+                        playbackState={playbackState}
+                        isMuted={isVoiceMuted}
+                        transcript={inputValue || latestUserTranscript}
+                        onStopListening={handleStopListen}
+                        onPauseSpeaking={() => textToSpeechService.pause()}
+                        onResumeSpeaking={() => textToSpeechService.resume()}
+                        onStopSpeaking={() => textToSpeechService.stop()}
+                        onReplaySpeaking={() => textToSpeechService.replay()}
+                        onToggleMute={handleToggleMute}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ══ VOICE PERMISSION ERROR BANNER ══ */}
+                <AnimatePresence>
+                  {voicePermissionError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-[11.5px] text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2 mb-1.5"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                        <span>{voicePermissionError}</span>
+                      </div>
+                      <button
+                        onClick={() => setVoicePermissionError(null)}
+                        className="p-1 rounded text-rose-500 hover:text-rose-700 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <div className="flex items-end gap-2 rounded-2xl p-1.5 px-3 bg-slate-100/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
                   <textarea
                     ref={textareaRef}
@@ -1309,18 +1731,46 @@ export const ChatAssistant: React.FC = () => {
                   />
 
                   <div className="flex items-center gap-1 shrink-0 pb-0.5">
-                    {SpeechRecognition && (
+                    {speechRecognitionService.isAvailable() && (
                       <button
                         type="button"
-                        onClick={toggleListen}
-                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                          isListening
+                        onClick={handleToggleListen}
+                        aria-label={
+                          voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING' || voiceState === 'TRANSCRIBING'
+                            ? 'Stop voice recording'
+                            : 'Start voice recording'
+                        }
+                        className={`relative p-2 rounded-xl transition-all cursor-pointer ${
+                          voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING' || voiceState === 'TRANSCRIBING'
+                            ? 'text-white bg-blue-600 shadow-md shadow-blue-500/30'
+                            : voiceState === 'PROCESSING' || voiceState === 'AI_THINKING'
+                            ? 'text-purple-600 bg-purple-50 dark:bg-purple-950/40'
+                            : voiceState === 'AI_SPEAKING'
+                            ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
+                            : voiceState === 'ERROR'
                             ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/40'
                             : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
                         }`}
-                        title="Voice Input"
+                        title={
+                          voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING' || voiceState === 'TRANSCRIBING'
+                            ? 'Listening... Click to stop'
+                            : voiceState === 'AI_SPEAKING'
+                            ? 'AI Speaking... Click to interrupt'
+                            : 'Voice Input (Click to speak)'
+                        }
                       >
-                        {isListening ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
+                        {voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING' || voiceState === 'TRANSCRIBING' ? (
+                          <>
+                            <span className="absolute inset-0 rounded-xl bg-blue-500 animate-ping opacity-30" />
+                            <Square className="w-3.5 h-3.5 fill-current relative z-10" />
+                          </>
+                        ) : voiceState === 'PROCESSING' || voiceState === 'AI_THINKING' ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                        ) : voiceState === 'AI_SPEAKING' ? (
+                          <Volume2 className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                        ) : (
+                          <Mic className="w-4 h-4" />
+                        )}
                       </button>
                     )}
 
@@ -1542,6 +1992,31 @@ export const ChatAssistant: React.FC = () => {
           </div>
         </motion.button>
       )}
+
+      {/* ══ DEDICATED VOICE CONVERSATION MODAL ══ */}
+      <VoiceConversationModal
+        isOpen={isVoiceModalOpen}
+        voiceState={voiceState}
+        voiceMode={voiceMode}
+        playbackState={playbackState}
+        isMuted={isVoiceMuted}
+        latestUserTranscript={latestUserTranscript}
+        latestAIText={latestAIText}
+        isAuthenticated={isAuthenticated}
+        audioLevel={audioLevel}
+        settings={voiceSettings}
+        onClose={handleCloseVoiceModal}
+        onToggleMode={(mode) => { setVoiceMode(mode); handleUpdateVoiceSettings({ conversationMode: mode }) }}
+        onToggleMute={handleToggleMute}
+        onStartListening={handleStartListen}
+        onStopListening={handleStopListen}
+        onStartPushToTalk={handleStartListen}
+        onStopPushToTalk={handleStopListen}
+        onReplaySpeaking={() => textToSpeechService.replay()}
+        onEditTranscript={handleEditTranscript}
+        onRetryTranscript={handleRetryTranscript}
+        onUpdateSettings={handleUpdateVoiceSettings}
+      />
     </>
   )
 }

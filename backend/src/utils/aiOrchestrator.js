@@ -237,6 +237,24 @@ const formatComplaintList = (complaints) => {
   }))
 }
 
+// ── Speech Normalization for Voice AI ─────────────────────────────────────────
+const cleanSpokenText = (text) => {
+  if (!text) return ''
+  return text
+    .replace(/###\s*/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[•\-\*]\s+/g, '')
+    .replace(/>\s*/g, '')
+    .replace(/ℹ️|⚠️|✓|❌|⭐|⏱️|🔒|👋/g, '')
+    .replace(/\bCR-(\d+)\b/g, 'C R $1')
+    .replace(/\bCMP-(\d+)\b/g, 'C M P $1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ORCHESTRATOR MAIN ENTRYPOINT
 // ══════════════════════════════════════════════════════════════════════════════
@@ -253,7 +271,45 @@ const orchestrateChat = async ({
   history = [],
   actionType = null,
   requestId = null,
-  previousAssistantMessage = ''
+  previousAssistantMessage = '',
+  isVoiceMode = false
+}) => {
+  const res = await _orchestrateChatCore({
+    message,
+    sessionId,
+    user,
+    role,
+    isAuthenticated,
+    conversationState,
+    complaintDraft,
+    feedbackDraft,
+    history,
+    actionType,
+    requestId,
+    previousAssistantMessage,
+    isVoiceMode
+  })
+
+  if (res && !res.spokenText && res.text) {
+    res.spokenText = cleanSpokenText(res.text)
+  }
+  return res
+}
+
+const _orchestrateChatCore = async ({
+  message,
+  sessionId,
+  user,
+  role = 'guest',
+  isAuthenticated = false,
+  conversationState = 'IDLE',
+  complaintDraft = null,
+  feedbackDraft = null,
+  history = [],
+  actionType = null,
+  requestId = null,
+  previousAssistantMessage = '',
+  isVoiceMode = false
 }) => {
   const trimmedMsg = (message || '').trim()
   const userRole = role || 'guest'
@@ -338,59 +394,117 @@ const orchestrateChat = async ({
 
   // 4C. SHOW PENDING COMPLAINTS (Database Tool)
   if (intent === 'SHOW_PENDING_COMPLAINTS') {
-    return await _handleShowPending(user, currentSessionId, userRole)
+    const res = await _handleShowPending(user, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // 4D. COMPLAINT HISTORY (Database Tool)
   if (intent === 'SHOW_COMPLAINT_HISTORY' || intent === 'SHOW_RESOLVED_COMPLAINTS') {
-    return await _handleShowHistory(user, currentSessionId, userRole)
+    const res = await _handleShowHistory(user, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // 4E. CHECK STATUS (Database Tool)
   if (intent === 'CHECK_COMPLAINT_STATUS') {
-    return await _handleCheckStatus(user, trimmedMsg, analysis, currentSessionId, userRole)
+    const res = await _handleCheckStatus(user, trimmedMsg, analysis, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // 4F. GIVE FEEDBACK (Database Tool)
   if (intent === 'GIVE_FEEDBACK') {
-    return await _handleGiveFeedback(user, currentSessionId, userRole)
+    const res = await _handleGiveFeedback(user, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
+  }
+
+  // 4F-2. FEEDBACK WORKFLOW (State Machine + Input)
+  if (intent === 'PROVIDE_FEEDBACK_DETAILS' || _isFeedbackWorkflowState(normalizeState(conversationState))) {
+    const res = await _handleFeedbackWorkflow(trimmedMsg, analysis, feedbackDraft, user, history, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
+  }
+
+  // 4F-3. SUBMIT FEEDBACK
+  if (intent === 'SUBMIT_FEEDBACK') {
+    return {
+      sessionId: currentSessionId,
+      state: STATES.FEEDBACK_PREVIEW,
+      intent: 'SUBMIT_FEEDBACK',
+      text: 'Please review your feedback preview above and click **Submit Feedback** to record your rating.',
+      messageType: 'FEEDBACK_ANALYSIS',
+      structuredFeedback: feedbackDraft,
+      feedbackDraft,
+      quickActions: ['Submit Feedback', 'Edit Feedback', 'Cancel'],
+      authMode: 'authenticated'
+    }
+  }
+
+  // 4F-4. EDIT FEEDBACK
+  if (intent === 'EDIT_FEEDBACK') {
+    return {
+      sessionId: currentSessionId,
+      state: STATES.FEEDBACK_COMMENT,
+      intent: 'EDIT_FEEDBACK',
+      text: 'You can modify your feedback comment or rating. Type your updated thoughts below:',
+      messageType: 'TEXT_MESSAGE',
+      feedbackDraft,
+      quickActions: ['Submit Feedback', 'Cancel'],
+      authMode: 'authenticated'
+    }
   }
 
   // 4G-1. JOIN COMPLAINT (Duplicate Flow Action)
   if (intent === 'JOIN_COMPLAINT') {
-    return await _handleJoinComplaint(user, trimmedMsg, analysis, complaintDraft, history, currentSessionId, userRole)
+    const res = await _handleJoinComplaint(user, trimmedMsg, analysis, complaintDraft, history, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // 4G-2. CREATE ANYWAY (Duplicate Flow Action)
   if (intent === 'CREATE_ANYWAY') {
-    return await _handleCreateAnyway(complaintDraft, currentSessionId, userRole)
+    const res = await _handleCreateAnyway(complaintDraft, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // 4G-3. VIEW EXISTING COMPLAINT (Duplicate Flow Action)
   if (intent === 'VIEW_EXISTING_COMPLAINT') {
-    return await _handleViewExisting(user, trimmedMsg, analysis, history, currentSessionId, userRole)
+    const res = await _handleViewExisting(user, trimmedMsg, analysis, history, currentSessionId, userRole)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // 4G-4. COMPLAINT WORKFLOW (State Machine + LLM)
   if (intent === 'CREATE_COMPLAINT' && !_hasComplaintDescriptionInMessage(trimmedMsg, complaintDraft)) {
-    // User wants to start a new complaint — transition to COMPLAINT_DESCRIPTION
     return {
       sessionId: currentSessionId,
       state: STATES.COMPLAINT_DESCRIPTION,
       intent: 'CREATE_COMPLAINT',
       text: 'Sure! Please describe the problem you are facing on campus (including the building, floor, or room number).',
       messageType: 'COMPLAINT_QUESTION',
-      quickActions: ['Seminar Hall projector flickering', 'Computer Lab 3 AC not working', 'Hostel Mess water issue', 'Cancel']
+      quickActions: ['Seminar Hall projector flickering', 'Computer Lab 3 AC not working', 'Hostel Mess water issue', 'Cancel'],
+      authMode: 'authenticated',
+      authNotice: 'Personalized assistance enabled.'
     }
   }
 
   if (intent === 'PROVIDE_COMPLAINT_DETAILS' || _isComplaintWorkflowState(normalizeState(conversationState))) {
-    return await _handleComplaintWorkflow(trimmedMsg, analysis, complaintDraft, user, history, currentSessionId, lastAssistantMsg)
+    const res = await _handleComplaintWorkflow(trimmedMsg, analysis, complaintDraft, user, history, currentSessionId, lastAssistantMsg)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
-  // 4H. GENERAL QUESTION (RAG Pipeline)
+  // 4H. SPECIFIC EXPLANATION INTENTS
+  if (intent === 'TRACKING_EXPLANATION') {
+    return await _handleTrackingExplanation(currentSessionId, userRole)
+  }
+
+  if (intent === 'DUPLICATE_CHECK') {
+    return await _handleDuplicateCheckExplanation(currentSessionId, userRole)
+  }
+
+  if (intent === 'RESOLUTION_PREDICTION') {
+    return await _handleResolutionPredictionExplanation(currentSessionId, userRole)
+  }
+
+  // 4I. GENERAL QUESTION (RAG Pipeline)
   if (intent === 'GENERAL_QUESTION' || msgCategory === MESSAGE_CATEGORIES.GENERAL_QUESTION) {
-    return await _handleGeneralQuestion(trimmedMsg, history, conversationState, currentSessionId, userRole, lastAssistantMsg)
+    const res = await _handleGeneralQuestion(trimmedMsg, history, conversationState, currentSessionId, userRole, lastAssistantMsg)
+    return { ...res, authMode: 'authenticated', authNotice: 'Personalized assistance enabled.' }
   }
 
   // ── Step 5: Fallback ───────────────────────────────────────────────────
@@ -401,7 +515,9 @@ const orchestrateChat = async ({
     intent: 'GENERAL_QUESTION',
     text: fallback.text,
     messageType: 'TEXT_MESSAGE',
-    quickActions: fallback.quickActions
+    quickActions: fallback.quickActions,
+    authMode: 'authenticated',
+    authNotice: 'Personalized assistance enabled.'
   }
 }
 
@@ -413,19 +529,37 @@ async function _handleGuestMessage(message, intent, sessionId, history) {
   const isProtectedIntent = [
     'SHOW_PENDING_COMPLAINTS', 'SHOW_RESOLVED_COMPLAINTS',
     'SHOW_COMPLAINT_HISTORY', 'CHECK_COMPLAINT_STATUS',
-    'GIVE_FEEDBACK', 'SUBMIT_FEEDBACK'
+    'GIVE_FEEDBACK', 'SUBMIT_FEEDBACK', 'PROVIDE_FEEDBACK_DETAILS'
   ].includes(intent)
 
-  if (isProtectedIntent || /^(show my|my complaint|track my|my status)/i.test(message)) {
+  if (isProtectedIntent || /^(show my|my complaint|track my|my status|my tickets)/i.test(message)) {
     return {
       sessionId,
       state: STATES.IDLE,
       intent: 'LOGIN_HELP',
       text: 'Please sign in to securely access your personal complaints, live tracking, and feedback history.',
       messageType: 'TEXT_MESSAGE',
+      authMode: 'guest',
+      guestNotice: 'Log in to view your complaints, status updates, feedback history, and personalized AI insights.',
       widgetData: { type: 'AUTH_REQUIRED', ctaText: 'Sign In to Continue', target: '/login' },
-      quickActions: ['Sign In', 'How to Submit a Complaint', 'How Complaint Tracking Works', 'Login Help']
+      quickActions: ['Sign In', 'How to Submit a Complaint', 'How Complaint Tracking Works', 'Feedback Information', 'Login Help']
     }
+  }
+
+  // Handle specific explanations for guests
+  if (intent === 'TRACKING_EXPLANATION' || /how.*tracking works/i.test(message)) {
+    const res = await _handleTrackingExplanation(sessionId, 'guest')
+    return { ...res, authMode: 'guest', guestNotice: 'Log in to view your complaints, status updates, feedback history, and personalized AI insights.' }
+  }
+
+  if (intent === 'DUPLICATE_CHECK' || /duplicate/i.test(message)) {
+    const res = await _handleDuplicateCheckExplanation(sessionId, 'guest')
+    return { ...res, authMode: 'guest', guestNotice: 'Log in to view your complaints, status updates, feedback history, and personalized AI insights.' }
+  }
+
+  if (intent === 'RESOLUTION_PREDICTION' || /prediction/i.test(message)) {
+    const res = await _handleResolutionPredictionExplanation(sessionId, 'guest')
+    return { ...res, authMode: 'guest', guestNotice: 'Log in to view your complaints, status updates, feedback history, and personalized AI insights.' }
   }
 
   // Public RAG for guests
@@ -452,8 +586,134 @@ Keep your response student-friendly, concise (under 4 sentences), and accurate.`
     intent,
     text: replyText,
     messageType: ragDocs.length > 0 ? 'RAG_ANSWER' : 'TEXT_MESSAGE',
+    authMode: 'guest',
+    guestNotice: 'Log in to view your complaints, status updates, feedback history, and personalized AI insights.',
     ragSources: ragDocs.map(d => ({ title: d.title, category: d.category })),
-    quickActions: ['How to Submit a Complaint', 'How Complaint Tracking Works', 'Login Help']
+    quickActions: ['How to Submit a Complaint', 'How Complaint Tracking Works', 'Feedback Information', 'Login Help']
+  }
+}
+
+function _isFeedbackWorkflowState(state) {
+  return [
+    STATES.FEEDBACK_SELECTION,
+    STATES.FEEDBACK_RATING,
+    STATES.FEEDBACK_COMMENT,
+    STATES.FEEDBACK_PREVIEW,
+    'FEEDBACK_INPUT'
+  ].includes(state)
+}
+
+async function _handleTrackingExplanation(sessionId, userRole) {
+  return {
+    sessionId,
+    state: STATES.IDLE,
+    intent: 'TRACKING_EXPLANATION',
+    text: `### How Complaint Tracking Works\nCampusResolve uses a 4-stage transparent redressal process:\n\n1. **Submitted**: Your issue is logged with an immutable ID (e.g. \`CR-001\`) and initial acknowledgment within 4 hours.\n2. **Assigned**: The ticket is routed to the responsible faculty or facility coordinator.\n3. **In Progress**: Remediation and physical/academic inspection underway.\n4. **Resolved**: The technician or coordinator records resolution notes, and you receive an evaluation prompt.\n\n⏱️ **SLA Timelines**: Urgent safety issues (2–4 hours), General infrastructure (24–48 hours), Academic reconciliation (1–2 working days).`,
+    messageType: 'TEXT_MESSAGE',
+    quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', 'Check Complaint Status']
+  }
+}
+
+async function _handleDuplicateCheckExplanation(sessionId, userRole) {
+  return {
+    sessionId,
+    state: STATES.IDLE,
+    intent: 'DUPLICATE_CHECK',
+    text: `### AI Duplicate Complaint Prevention\nWhen you begin filing an issue, CampusResolve AI performs a real-time scan of active complaints:\n\n- **Semantic & Location Matching**: Compares facility, keywords, category, and room numbers.\n- **Join Existing Ticket**: If a matching issue is found (e.g., *Projector flickering in Seminar Hall*), you can join it as an affected student to elevate its priority without creating duplicate tickets.\n- **Create Anyway**: You always have full autonomy to file your complaint independently.`,
+    messageType: 'TEXT_MESSAGE',
+    quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', 'How Complaint Tracking Works']
+  }
+}
+
+async function _handleResolutionPredictionExplanation(sessionId, userRole) {
+  return {
+    sessionId,
+    state: STATES.IDLE,
+    intent: 'RESOLUTION_PREDICTION',
+    text: `### AI Resolution Prediction Engine\nBefore and during ticket assignment, the predictive agent analyzes:\n\n- **Historical Turnaround**: Real benchmarks from resolved complaints in your department.\n- **Department Workload**: Active queue size and faculty availability.\n- **SLA Breach Risk**: Dynamic probability score (Low, Moderate, High, Critical) with recommended actions.\n\n> ℹ️ **Disclaimer**: AI-generated insight based on available complaint data. This is a recommendation, not a confirmed fact.`,
+    spokenText: 'AI-generated insight based on available complaint data. This is a recommendation, not a confirmed fact.',
+    messageType: 'TEXT_MESSAGE',
+    quickActions: ['Help Me Create a Complaint', 'Show My Pending Complaints', 'Check Complaint Status']
+  }
+}
+
+async function _handleFeedbackWorkflow(message, analysis, feedbackDraft, user, history, sessionId, userRole) {
+  const text = (message || '').trim()
+
+  // If user is verbally adjusting rating or dimension on existing feedback draft
+  if (feedbackDraft && (analysis.extractedEntities?.rating || analysis.extractedEntities?.resolutionQuality || analysis.extractedEntities?.responseTime || analysis.extractedEntities?.communication)) {
+    const updatedFeedback = { ...feedbackDraft }
+    if (analysis.extractedEntities.rating) {
+      updatedFeedback.suggestedRating = analysis.extractedEntities.rating
+    }
+    if (analysis.extractedEntities.resolutionQuality) {
+      updatedFeedback.resolutionQuality = analysis.extractedEntities.resolutionQuality
+    }
+    if (analysis.extractedEntities.responseTime) {
+      updatedFeedback.responseTime = analysis.extractedEntities.responseTime
+    }
+    if (analysis.extractedEntities.communication) {
+      updatedFeedback.communication = analysis.extractedEntities.communication
+    }
+    return {
+      sessionId,
+      state: STATES.FEEDBACK_PREVIEW,
+      intent: 'PROVIDE_FEEDBACK_DETAILS',
+      text: `Updated your feedback rating to **${updatedFeedback.suggestedRating} stars** with **${updatedFeedback.resolutionQuality || 'Satisfactory'}** resolution quality. Your feedback is ready. Would you like me to submit it?`,
+      spokenText: `Updated your feedback rating to ${updatedFeedback.suggestedRating} stars. Your feedback is ready. Would you like me to submit it?`,
+      messageType: 'FEEDBACK_ANALYSIS',
+      structuredFeedback: updatedFeedback,
+      feedbackDraft: updatedFeedback,
+      quickActions: ['Submit Feedback', 'Edit Feedback', 'Cancel']
+    }
+  }
+
+  if (!text || text.length < 2) {
+    return {
+      sessionId,
+      state: STATES.FEEDBACK_COMMENT,
+      intent: 'PROVIDE_FEEDBACK_DETAILS',
+      text: 'Please write your feedback comment regarding the resolution quality and experience.',
+      spokenText: 'Please describe your feedback regarding the resolution quality and experience.',
+      messageType: 'TEXT_MESSAGE',
+      quickActions: ['Excellent resolution', 'Satisfactory fix', 'Took too long', 'Cancel']
+    }
+  }
+
+  // Analyze ONLY the user's actual text
+  const aiAnalysis = await analyzeFeedback(text)
+  const complaintId = feedbackDraft?.complaintId || analysis.extractedEntities?.complaintId || 'CR-001'
+  const complaintTitle = feedbackDraft?.complaintTitle || 'Resolved Grievance'
+  const department = feedbackDraft?.department || 'General'
+
+  const structuredFeedback = {
+    complaintId,
+    complaintTitle,
+    department,
+    teacherId: feedbackDraft?.teacherId || 'TCH-CSE-001',
+    teacherName: feedbackDraft?.teacherName || 'Faculty',
+    sentiment: aiAnalysis.sentiment || 'Neutral',
+    resolutionQuality: aiAnalysis.resolutionQuality || 'Satisfactory',
+    responseTime: aiAnalysis.responseTime || 'Moderate',
+    communication: aiAnalysis.communication || 'Moderate',
+    suggestedRating: aiAnalysis.suggestedRating || 4,
+    topics: aiAnalysis.topics || ['Overall Experience'],
+    summary: aiAnalysis.summary || 'Student feedback recorded.',
+    suggestedFeedback: aiAnalysis.suggestedFeedback || text,
+    originalComment: text,
+    suggestedFollowUp: aiAnalysis.suggestedFollowUp || ''
+  }
+
+  return {
+    sessionId,
+    state: STATES.FEEDBACK_PREVIEW,
+    intent: 'PROVIDE_FEEDBACK_DETAILS',
+    text: `Here is your feedback summary for **${complaintId}** (*${complaintTitle}*). Your feedback is ready. Would you like me to submit it?`,
+    spokenText: 'Your feedback is ready. Would you like me to submit it?',
+    messageType: 'FEEDBACK_ANALYSIS',
+    structuredFeedback,
+    feedbackDraft: structuredFeedback,
+    quickActions: ['Submit Feedback', 'Edit Feedback', 'Cancel']
   }
 }
 
@@ -465,15 +725,21 @@ async function _handleShowPending(user, sessionId, userRole) {
       state: STATES.IDLE,
       intent: 'SHOW_PENDING_COMPLAINTS',
       text: 'You currently have no pending complaints. All your submitted issues have either been resolved or you have not logged any active tickets.',
+      spokenText: 'You currently have no pending complaints. All your submitted issues have either been resolved or you have not logged any active tickets.',
       messageType: 'TEXT_MESSAGE',
       quickActions: ['Help me create a complaint', 'Show my complaint history', '⭐ Give Feedback']
     }
   }
+
+  const first = pending[0]
+  const spokenText = `You currently have ${pending.length} pending complaint${pending.length > 1 ? 's' : ''}. Your complaint ${first.complaintId} about ${first.title || first.category} is assigned to ${first.assignedTeacherName || first.department || 'the maintenance department'} and is currently ${first.status.toLowerCase()}.`
+
   return {
     sessionId,
     state: STATES.STATUS_LOOKUP,
     intent: 'SHOW_PENDING_COMPLAINTS',
     text: `You have **${pending.length} active pending complaint(s)**:`,
+    spokenText,
     messageType: 'COMPLAINT_LIST',
     queryResults: formatComplaintList(pending),
     quickActions: ['Help me create a complaint', 'Show my complaint history', '⭐ Give Feedback']
@@ -488,6 +754,7 @@ async function _handleShowHistory(user, sessionId, userRole) {
       state: STATES.IDLE,
       intent: 'SHOW_COMPLAINT_HISTORY',
       text: 'You do not have any complaint history yet. If you are facing any campus issue, I can help you lodge one right now!',
+      spokenText: 'You do not have any complaint history yet. If you are facing any campus issue, I can help you lodge one right now!',
       messageType: 'TEXT_MESSAGE',
       quickActions: ['Help me create a complaint', '⭐ Give Feedback']
     }
@@ -497,6 +764,7 @@ async function _handleShowHistory(user, sessionId, userRole) {
     state: STATES.COMPLAINT_HISTORY,
     intent: 'SHOW_COMPLAINT_HISTORY',
     text: `Here is your recent complaint history (**${historyList.length} records**):`,
+    spokenText: `Here is your recent complaint history with ${historyList.length} records.`,
     messageType: 'COMPLAINT_LIST',
     queryResults: formatComplaintList(historyList),
     quickActions: ['Help me create a complaint', 'Show my pending complaints', '⭐ Give Feedback']
@@ -516,6 +784,7 @@ async function _handleCheckStatus(user, message, analysis, sessionId, userRole) 
         state: STATES.IDLE,
         intent: 'CHECK_COMPLAINT_STATUS',
         text: `🔒 Security Alert: You do not have authorization to view the records for complaint **${targetId}**.`,
+        spokenText: `Security Alert. You do not have authorization to view the records for complaint ${targetId}.`,
         messageType: 'TEXT_MESSAGE',
         quickActions: ['Show my pending complaints', 'Show my complaint history']
       }
@@ -523,11 +792,13 @@ async function _handleCheckStatus(user, message, analysis, sessionId, userRole) 
 
     if (statusRes.found && statusRes.complaint) {
       const c = statusRes.complaint
+      const spokenText = `Your complaint ${c.complaintId} about ${c.title || c.category} is assigned to ${c.assignedTeacherName || c.department || 'the maintenance department'} and is currently ${c.status.toLowerCase()}.`
       return {
         sessionId,
         state: STATES.STATUS_LOOKUP,
         intent: 'CHECK_COMPLAINT_STATUS',
         text: `### Complaint Status: **${c.complaintId}**\n- **Title:** ${c.title || c.category}\n- **Status:** \`${c.status}\`\n- **Category:** ${c.category}\n- **Department:** ${c.department}\n- **Priority:** ${c.priority}\n- **Assigned Faculty:** ${c.assignedTeacherName || 'Department Faculty Coordinator'}\n- **Created:** ${new Date(c.createdAt).toLocaleDateString()}${c.resolutionNotes ? `\n- **Resolution Notes:** ${c.resolutionNotes}` : ''}`,
+        spokenText,
         messageType: 'STATUS_CARD',
         queryResults: [formatComplaintList([c])[0]],
         quickActions: c.status === 'Resolved'
@@ -541,6 +812,7 @@ async function _handleCheckStatus(user, message, analysis, sessionId, userRole) 
       state: STATES.IDLE,
       intent: 'CHECK_COMPLAINT_STATUS',
       text: `I searched your records, but could not find a complaint matching ID **${targetId}**. Please check the ID from your complaint history.`,
+      spokenText: `I searched your records, but could not find a complaint matching ID ${targetId}.`,
       messageType: 'TEXT_MESSAGE',
       quickActions: ['Show my pending complaints', 'Show my complaint history']
     }
@@ -643,6 +915,7 @@ async function _handleComplaintWorkflow(message, analysis, existingDraft, user, 
       state: STATES.COMPLAINT_LOCATION,
       intent: 'PROVIDE_COMPLAINT_DETAILS',
       text: 'I can help create a complaint for that. **Which location / room / building is affected?**',
+      spokenText: 'I can help you create a complaint. Which building, room, or location is affected?',
       messageType: 'COMPLAINT_QUESTION',
       complaintDraft: updatedDraft,
       quickActions: ['Seminar Hall', 'Computer Lab 3', 'Hostel Block B', 'Central Library', 'Cancel']
@@ -659,6 +932,7 @@ async function _handleComplaintWorkflow(message, analysis, existingDraft, user, 
       state: STATES.COMPLAINT_PREVIEW,
       intent: 'PROVIDE_COMPLAINT_DETAILS',
       text: `⚠️ **Similar Active Complaint Detected!** (${topMatch.similarityScore}% Match)\n\nI found an existing active ticket for **${topMatch.location || updatedDraft.location}** (${topMatch.complaintId}: *${topMatch.title}*).\n\nTo prevent duplicate tickets, you can join this existing complaint to boost its resolution priority, or choose to create your new ticket anyway.`,
+      spokenText: `I found an existing active ticket for ${topMatch.location || updatedDraft.location}. You can join this complaint or create a new one.`,
       messageType: 'COMPLAINT_PREVIEW',
       structuredComplaint: updatedDraft,
       complaintDraft: updatedDraft,
@@ -687,7 +961,8 @@ async function _handleComplaintWorkflow(message, analysis, existingDraft, user, 
     sessionId,
     state: STATES.COMPLAINT_PREVIEW,
     intent: 'PROVIDE_COMPLAINT_DETAILS',
-    text: 'Got it! I have prepared your complaint details below. Please review the preview card and click **Create Complaint** to submit.',
+    text: `Got it! I have prepared your complaint details for **${updatedDraft.location}** below. Please review the preview card and click **Create Complaint** to submit.`,
+    spokenText: `Thanks. I found the location as ${updatedDraft.location}. Your complaint is ready for review. Would you like me to submit it?`,
     messageType: 'COMPLAINT_PREVIEW',
     structuredComplaint: updatedDraft,
     complaintDraft: updatedDraft,
@@ -796,7 +1071,10 @@ async function _handleGeneralQuestion(message, history, conversationState, sessi
   const { results: ragDocs, queryInfo } = searchCampusKnowledge(message, 3, history, conversationState)
   const ragContext = buildRAGContext(ragDocs)
 
-  if (ragDocs.length > 0) {
+  if (ragDocs.length > 0 && ragDocs[0].finalScore >= 2.5) {
+    const topScore = ragDocs[0].finalScore || 0
+    const confidenceLevel = topScore >= 10 ? 'High relevance' : topScore >= 4.5 ? 'Medium relevance' : 'Low relevance'
+
     const ragPrompt = `You are the official CampusResolve AI Assistant.
 Answer the following student question accurately using ONLY the campus policies and knowledge base below:
 ${ragContext}
@@ -806,8 +1084,8 @@ Question: "${queryInfo?.rewritten || message}"
 Style rules:
 - Be clear, helpful, and concise (under 4 sentences).
 - Explain SLA or workflow steps accurately without inventing numbers.
-- Ground your answer in the retrieved knowledge.
-- Do NOT mention that you are using "sources" or "retrieved documents" — just answer naturally.`
+- Ground your answer strictly in the retrieved knowledge.
+- Do NOT claim predictions are facts or invent data.`
 
     const ragAnswer = await askGemini(ragPrompt)
 
@@ -821,7 +1099,6 @@ Style rules:
       intent: 'GENERAL_QUESTION'
     })
 
-    // If validation fails, use the raw document content
     const responseText = validation.valid ? finalText : ragDocs[0].content
 
     return {
@@ -830,24 +1107,21 @@ Style rules:
       intent: 'GENERAL_QUESTION',
       text: responseText,
       messageType: 'RAG_ANSWER',
+      confidenceLevel,
       ragSources: ragDocs.map(d => ({ title: d.title, category: d.category })),
       quickActions: getQuickActionsForState(STATES.IDLE, userRole)
     }
   }
 
-  // No RAG results — try LLM fallback
-  const fallbackAnswer = await askGemini(`You are the CampusResolve AI Assistant for university students.
-Answer this question politely and professionally: "${message}".
-If you don't know the specific answer, suggest the student contact the relevant department or use the CampusResolve complaint system.
-Keep it under 3 sentences.`)
-
+  // If no reliable verified context exists, return clear transparent notice
   return {
     sessionId,
     state: STATES.IDLE,
     intent: 'GENERAL_QUESTION',
-    text: fallbackAnswer || "I'm here to help you lodge and track campus grievances, understand SLA timelines, and submit resolution feedback. How can I assist you?",
+    text: "I couldn't find enough information to answer that accurately. Please consult the Student Affairs desk or browse official campus guidelines.",
     messageType: 'TEXT_MESSAGE',
-    quickActions: getQuickActionsForState(STATES.IDLE, userRole)
+    confidenceLevel: 'Low relevance',
+    quickActions: ['How to Submit a Complaint', 'How Complaint Tracking Works', 'Login Help']
   }
 }
 

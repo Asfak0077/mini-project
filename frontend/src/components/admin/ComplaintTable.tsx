@@ -12,9 +12,10 @@ interface ComplaintTableProps {
   teachers: Teacher[]
   onAssign: (complaintId: string, teacherId: string) => void
   onStatusChange: (complaintId: string, status: ComplaintStatus) => void
+  onInspectAI?: (complaintId: string) => void
 }
 
-const ComplaintTable: React.FC<ComplaintTableProps> = ({ complaints, teachers, onAssign, onStatusChange }) => {
+const ComplaintTable: React.FC<ComplaintTableProps> = ({ complaints, teachers, onAssign, onStatusChange, onInspectAI }) => {
   const columns: Column<Complaint>[] = [
     {
       header: 'Complaint ID',
@@ -101,7 +102,16 @@ const ComplaintTable: React.FC<ComplaintTableProps> = ({ complaints, teachers, o
     {
       header: 'Actions',
       cell: (item) => (
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {onInspectAI && (
+            <button
+              onClick={() => onInspectAI(item.id)}
+              title="View AI Root Cause & SLA Telemetry"
+              className="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+            >
+              <span>AI</span>
+            </button>
+          )}
           {item.status !== 'Resolved' ? (
             <button
               onClick={() => onStatusChange(item.id, 'Resolved')}

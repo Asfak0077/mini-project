@@ -4,7 +4,8 @@ import {
   FileText, AlertTriangle, CheckCircle2,
   MapPin, Tag, ArrowRight, Check,
   Copy, Edit3, Loader2, Star, Sparkles, LogIn, Lock,
-  Users, Eye, Plus, ThumbsUp, ShieldAlert, Clock
+  Users, Eye, Plus, ThumbsUp, ShieldAlert, Clock,
+  Volume2, VolumeX
 } from 'lucide-react'
 
 import {
@@ -19,6 +20,9 @@ import {
 interface ChatMessageContentProps {
   content: string
   isUser?: boolean
+  isSpeaking?: boolean
+  onSpeak?: (text: string) => void
+  onStopSpeak?: () => void
   structuredComplaint?: StructuredComplaint | null
   structuredFeedback?: StructuredFeedback | null
   duplicateMatches?: DuplicateMatch[] | null
@@ -154,6 +158,9 @@ const renderSentimentBadge = (sentiment: string = 'Neutral') => {
 export const ChatMessageContent: React.FC<ChatMessageContentProps> = ({
   content,
   isUser = false,
+  isSpeaking = false,
+  onSpeak,
+  onStopSpeak,
   structuredComplaint,
   structuredFeedback,
   duplicateMatches,
@@ -375,7 +382,48 @@ export const ChatMessageContent: React.FC<ChatMessageContentProps> = ({
   flushList()
 
   return (
-    <div className="space-y-2 break-words">
+    <div className={`space-y-2 break-words transition-all duration-200 ${
+      isSpeaking ? 'ring-2 ring-emerald-500/50 rounded-xl p-1 bg-emerald-50/20 dark:bg-emerald-950/20' : ''
+    }`}>
+      {/* Speaking Indicator & Audio Listen Button */}
+      {!isUser && content && (
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800/60 text-[11px]">
+          {isSpeaking ? (
+            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+              <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+              <span>Speaking response...</span>
+            </div>
+          ) : (
+            <span className="text-slate-400 text-[10.5px]">AI Response</span>
+          )}
+
+          <div className="flex items-center gap-1">
+            {isSpeaking ? (
+              <button
+                type="button"
+                onClick={() => onStopSpeak?.()}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 hover:bg-red-200 text-[10.5px] font-semibold cursor-pointer"
+                title="Stop audio speech"
+              >
+                <span>Stop</span>
+              </button>
+            ) : (
+              onSpeak && (
+                <button
+                  type="button"
+                  onClick={() => onSpeak(content)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10.5px] font-medium cursor-pointer transition-colors"
+                  title="Listen to response"
+                >
+                  <Volume2 className="w-3 h-3" />
+                  <span>Listen</span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Markdown Body */}
       {elements.length > 0 && <div className="space-y-0.5">{elements}</div>}
 

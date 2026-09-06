@@ -17,7 +17,10 @@ import { getAllFeedback } from '../services/feedbackService'
 import { ComplaintStatus } from '../types/domain'
 import { useToast } from '../components/shared/ToastNotification'
 import useSocket from '../hooks/useSocket'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import AICampusCommandCenter from '../components/admin/AICampusCommandCenter'
+import ComplaintAIIntelligencePanel from '../components/shared/ComplaintAIIntelligencePanel'
+import { X } from 'lucide-react'
 
 const AdminDashboard = () => {
   const queryClient = useQueryClient()
@@ -25,7 +28,8 @@ const AdminDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [deptFilter, setDeptFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
-  const [activeTab, setActiveTab] = useState<'all' | 'assigned' | 'pending' | 'resolved' | 'performance'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'assigned' | 'pending' | 'resolved' | 'performance' | 'intelligence'>('all')
+  const [inspectComplaintId, setInspectComplaintId] = useState<string | null>(null)
   const { showToast } = useToast()
 
   const complaintsQuery = useQuery({ queryKey: ['complaints'], queryFn: fetchComplaints })
@@ -127,6 +131,7 @@ const AdminDashboard = () => {
 
   const tabs = [
     { id: 'all', label: 'All Complaints', icon: LayoutGrid, count: stats.total },
+    { id: 'intelligence', label: 'AI Campus Intelligence', icon: Sparkles },
     { id: 'pending', label: 'Pending Assignment', icon: Clock, count: stats.pending },
     { id: 'assigned', label: 'In Progress', icon: Zap, count: stats.assigned },
     { id: 'resolved', label: 'Resolved', icon: CheckCircle, count: stats.resolved },
@@ -285,6 +290,11 @@ const AdminDashboard = () => {
 
         {activeTab === 'performance' ? (
           <TeacherPerformance />
+        ) : activeTab === 'intelligence' ? (
+          <AICampusCommandCenter
+            complaints={complaintsQuery.data ?? []}
+            onSelectComplaint={(id) => setInspectComplaintId(id)}
+          />
         ) : (
           <div className="space-y-5">
             {/* ── 4. Search & Filter Suite ─────────────────────────── */}
@@ -358,6 +368,7 @@ const AdminDashboard = () => {
                 assignMutation.mutate({ complaintId, teacherId })
               }}
               onStatusChange={(complaintId, status) => statusMutation.mutate({ complaintId, status })}
+              onInspectAI={(complaintId) => setInspectComplaintId(complaintId)}
             />
 
             {/* ── 6. Analytics Charts & Live Activity Log ──────────── */}
@@ -373,6 +384,42 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* ── AI Intelligence Inspection Modal ── */}
+        <AnimatePresence>
+          {inspectComplaintId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                className="w-full max-w-3xl bg-white dark:bg-[#0E1520] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              >
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-[#121929]/50">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-500" />
+                    <h3 className="text-sm font-[800] text-slate-900 dark:text-white">
+                      Complaint AI Diagnostics & SLA Telemetry
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setInspectComplaintId(null)}
+                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 overflow-y-auto flex-1">
+                  <ComplaintAIIntelligencePanel
+                    complaintId={inspectComplaintId}
+                    defaultExpanded={true}
+                    onSelectRelatedComplaint={(relId) => setInspectComplaintId(relId)}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </AppShell>
   )

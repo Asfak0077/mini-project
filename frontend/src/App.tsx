@@ -16,6 +16,7 @@ import AboutPage from './routes/AboutPage'
 import ForgotPasswordPage from './routes/ForgotPasswordPage'
 import ResetPasswordPage from './routes/ResetPassword'
 import PublicProfilePage from './routes/PublicProfilePage'
+import AIRecommendationsPage from './routes/AIRecommendationsPage'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { useAuthStore } from './store/authStore'
 import { useThemeStore } from './store/themeStore'
@@ -191,6 +192,14 @@ const App = () => {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <TeacherManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/recommendations"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AIRecommendationsPage />
               </ProtectedRoute>
             }
           />

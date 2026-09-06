@@ -1,0 +1,137 @@
+- generic [ref=f17e2]:
+  - button "Open CampusResolve AI Assistant"
+  - generic [ref=f17e3]:
+    - complementary "Sidebar navigation" [ref=f17e4]:
+      - link "CR" [ref=f17e6] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=f17e9]:
+        - link "Dashboard" [ref=f17e11] [cursor=pointer]:
+          - /url: /student
+        - link "Complaint History" [ref=f17e19] [cursor=pointer]:
+          - /url: /student/history
+        - link "Submit Feedback" [ref=f17e25] [cursor=pointer]:
+          - /url: /student/feedback
+        - link "My Profile" [ref=f17e29] [cursor=pointer]:
+          - /url: /student/profile
+      - generic [ref=f17e34]:
+        - link [ref=f17e36] [cursor=pointer]:
+          - /url: /student/profile
+          - img "Asfak Rahman" [ref=f17e39]
+        - button "Log Out" [ref=f17e42] [cursor=pointer]
+    - generic [ref=f17e46]:
+      - banner [ref=f17e48]:
+        - generic [ref=f17e49]:
+          - button "Toggle sidebar expansion" [ref=f17e50] [cursor=pointer]
+          - navigation "Breadcrumb" [ref=f17e53]:
+            - generic [ref=f17e54]: Portal
+            - generic [ref=f17e57]: Dashboard
+        - button "Search complaints, actions... ⌘K" [ref=f17e60] [cursor=pointer]:
+          - generic [ref=f17e61]: Search complaints, actions...
+          - generic [ref=f17e66]: ⌘K
+        - generic [ref=f17e67]:
+          - generic [ref=f17e68]: SLA Live
+          - button "Switch to dark mode" [ref=f17e71] [cursor=pointer]
+          - button "Notifications" [ref=f17e75] [cursor=pointer]
+          - link "Asfak Student Asfak Rahman" [ref=f17e80] [cursor=pointer]:
+            - /url: /student/profile
+            - generic [ref=f17e81]:
+              - generic [ref=f17e82]: Asfak
+              - generic [ref=f17e83]: Student
+            - img "Asfak Rahman" [ref=f17e85]
+      - main [ref=f17e86]:
+        - generic [ref=f17e88]:
+          - generic [ref=f17e89]:
+            - generic [ref=f17e90]:
+              - heading "Good evening, Asfak!" [level=1] [ref=f17e91]
+              - paragraph [ref=f17e92]: Explore grievances, department trends, and real-time resolution status.
+            - generic [ref=f17e93]:
+              - generic [ref=f17e94]: Sun, Sep 6
+              - generic [ref=f17e98]: Portal Live
+          - generic [ref=f17e101]:
+            - generic [ref=f17e103]:
+              - generic [ref=f17e104]: Total Filed
+              - generic [ref=f17e105]: "00"
+              - generic [ref=f17e106]: +2 this term
+            - generic [ref=f17e120]:
+              - generic [ref=f17e121]: Pending
+              - generic [ref=f17e122]: "00"
+            - generic [ref=f17e125]:
+              - generic [ref=f17e130]:
+                - generic [ref=f17e131]: In Progress
+                - generic [ref=f17e132]: "00"
+              - generic [ref=f17e133]: Active SLA
+            - generic [ref=f17e135]:
+              - generic [ref=f17e136]: Resolution Rate
+              - generic [ref=f17e137]: 85%
+              - generic [ref=f17e138]: 0 complaints resolved
+          - generic [ref=f17e142]:
+            - generic [ref=f17e143]:
+              - generic [ref=f17e144]:
+                - generic [ref=f17e145]:
+                  - heading "Grievance Trends" [level=3] [ref=f17e146]
+                  - generic [ref=f17e147]: On track
+                - generic [ref=f17e151]:
+                  - button "Weekly" [ref=f17e152] [cursor=pointer]
+                  - button "Monthly" [ref=f17e153] [cursor=pointer]
+              - generic [ref=f17e154]:
+                - generic [ref=f17e155]:
+                  - generic [ref=f17e156]: Resolved SLA
+                  - text: 94.2%+2.45%
+                - generic [ref=f17e157]:
+                  - generic [ref=f17e158]: Avg Turnaround
+                  - text: 24 hrs-4.75%
+            - generic [ref=f17e161]:
+              - generic [ref=f17e162]:
+                - heading "Resolution Metric" [level=3] [ref=f17e163]
+                - paragraph [ref=f17e164]: Department Performance
+              - generic [ref=f17e165]:
+                - generic [ref=f17e166]: 85%
+                - paragraph [ref=f17e167]: Response efficiency is 18% higher than college baseline
+              - generic [ref=f17e168]: 85%
+            - generic [ref=f17e174]:
+              - generic [ref=f17e175]: Active Student
+              - generic [ref=f17e177]:
+                - generic [ref=f17e178]:
+                  - img "Asfak Rahman" [ref=f17e180]
+                  - generic [ref=f17e181]: ✓
+                - heading "Asfak Rahman" [level=4] [ref=f17e182]
+                - paragraph [ref=f17e183]: asf28146@gmail.com
+                - generic [ref=f17e184]: CSE · 23vec371
+              - generic [ref=f17e185]:
+                - generic [ref=f17e186]:
+                  - generic [ref=f17e187]: Filed
+                  - text: "0"
+                - generic [ref=f17e188]:
+                  - generic [ref=f17e189]: Solved
+                  - text: "0"
+                - generic [ref=f17e190]:
+                  - generic [ref=f17e191]: Rating
+                  - text: 4.9 ★
+          - generic [ref=f17e192]:
+            - generic [ref=f17e193]:
+              - generic [ref=f17e194]:
+                - generic [ref=f17e195]: Redressal Desk
+                - heading "Submit New Grievance" [level=3] [ref=f17e197]
+                - paragraph [ref=f17e198]: Directly route academic, infrastructure, or transport issues to verified department faculty.
+              - generic [ref=f17e199]:
+                - generic [ref=f17e200]:
+                  - generic [ref=f17e201]: Direct Faculty Dispatch
+                  - generic [ref=f17e203]: CR-2026 SLA
+                - generic [ref=f17e204]:
+                  - generic [ref=f17e205]: Infrastructure
+                  - generic [ref=f17e206]: Academic
+                  - generic [ref=f17e207]: Hostel
+                  - generic [ref=f17e208]: Transport
+              - button "Submit Grievance Now" [ref=f17e209] [cursor=pointer]
+            - generic [ref=f17e211]:
+              - generic [ref=f17e212]:
+                - heading "Recent Complaints" [level=3] [ref=f17e213]
+                - generic [ref=f17e214]: 0 Total
+              - link "View All History" [ref=f17e220] [cursor=pointer]:
+                - /url: /student/history
+            - generic [ref=f17e223]:
+              - generic [ref=f17e228]:
+                - heading "Campus Redressal SLA" [level=4] [ref=f17e229]
+                - paragraph [ref=f17e230]: All complaints are logged on the immutable ledger with direct escalation after 48 hours.
+              - link "Review Campus Policy" [ref=f17e231] [cursor=pointer]:
+                - /url: /about

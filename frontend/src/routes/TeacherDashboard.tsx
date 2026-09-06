@@ -15,6 +15,7 @@ import RecentActivityLog from '../components/admin/RecentActivityLog'
 import { Button } from '../components/ui/Button'
 import StatusBadge from '../components/shared/StatusBadge'
 import ComplaintIdBadge from '../components/shared/ComplaintIdBadge'
+import ComplaintAIIntelligencePanel from '../components/shared/ComplaintAIIntelligencePanel'
 import { motion } from 'framer-motion'
 
 const TeacherDashboard = () => {
@@ -279,6 +280,15 @@ const TeacherDashboard = () => {
                   </p>
                   <div className="pt-2">
                     <ComplaintTimeline status={item.status} createdAt={item.createdAt} updatedAt={item.updatedAt} />
+                  </div>
+
+                  {/* AI Root Cause, SLA & Health Intelligence */}
+                  <div className="pt-2">
+                    <ComplaintAIIntelligencePanel
+                      complaintId={item.id}
+                      ticketNumber={item.complaintId}
+                      defaultExpanded={false}
+                    />
                   </div>
                 </div>
 

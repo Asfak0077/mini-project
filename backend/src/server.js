@@ -61,6 +61,7 @@ app.use('/api/upload', require('./routes/uploadRoutes'))
 app.use('/api/analytics/teachers', require('./routes/teacherAnalyticsRoutes'))
 app.use('/api/feedback', require('./routes/feedbackRoutes'))
 app.use('/api/chatbot', require('./routes/chatbotRoutes'))
+app.use('/api/ai-intelligence', require('./routes/aiIntelligenceRoutes'))
 
 app.use((error, _req, res, _next) => {
   console.error(error)

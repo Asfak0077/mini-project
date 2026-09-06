@@ -157,7 +157,8 @@ class InMemoryStore {
       this.notifications = loaded.notifications || [...seedNotifications]
       this.feedback = loaded.feedback || [...seedFeedback]
       this.activityLogs = loaded.activityLogs || []
-      console.log(`✅ Persistent data store loaded from ${DATA_FILE} (${this.students.length} users, ${this.complaints.length} complaints, ${this.feedback.length} feedback)`)
+      this.aiAnalyses = loaded.aiAnalyses || []
+      console.log(`✅ Persistent data store loaded from ${DATA_FILE} (${this.students.length} users, ${this.complaints.length} complaints, ${this.feedback.length} feedback, ${this.aiAnalyses.length} AI analyses)`)
     } else {
       this.students = [...seedStudents]
       this.teachers = [...seedTeachers]
@@ -165,6 +166,7 @@ class InMemoryStore {
       this.notifications = [...seedNotifications]
       this.feedback = [...seedFeedback]
       this.activityLogs = []
+      this.aiAnalyses = []
       console.log('📦 Persistent data store initialized with seed data (first run)')
       this._persist()
     }
@@ -199,6 +201,7 @@ class InMemoryStore {
         notifications: this.notifications,
         feedback: this.feedback,
         activityLogs: this.activityLogs,
+        aiAnalyses: this.aiAnalyses,
         _savedAt: new Date().toISOString()
       }, null, 2)
       fs.writeFileSync(DATA_FILE, snapshot, 'utf-8')
@@ -519,6 +522,72 @@ class InMemoryStore {
 
     this._persist()
     return newFeedback
+  }
+
+  // ── AI Intelligence Analysis methods ──
+
+  findAIAnalysisByComplaintId(complaintId) {
+    if (!complaintId) return null
+    const cleanId = String(complaintId).trim().toLowerCase()
+    return this.aiAnalyses.find(a =>
+      (a.complaintId && String(a.complaintId).toLowerCase() === cleanId) ||
+      (a.complaintTicketId && String(a.complaintTicketId).toLowerCase() === cleanId)
+    ) || null
+  }
+
+  saveAIAnalysis(analysisData) {
+    if (!analysisData || !analysisData.complaintId) return null
+    const cleanId = String(analysisData.complaintId).trim().toLowerCase()
+    const index = this.aiAnalyses.findIndex(a =>
+      (a.complaintId && String(a.complaintId).toLowerCase() === cleanId) ||
+      (a.complaintTicketId && analysisData.complaintTicketId && String(a.complaintTicketId).toLowerCase() === String(analysisData.complaintTicketId).toLowerCase())
+    )
+
+    const existing = index >= 0 ? this.aiAnalyses[index] : null
+    const analysisHistory = Array.isArray(analysisData.analysisHistory) && analysisData.analysisHistory.length > 0
+      ? analysisData.analysisHistory
+      : existing && Array.isArray(existing.analysisHistory)
+      ? [...existing.analysisHistory]
+      : []
+
+    if (existing && existing.healthScore?.score !== undefined && existing.generatedAt !== analysisData.generatedAt) {
+      analysisHistory.unshift({
+        timestamp: existing.generatedAt || new Date().toISOString(),
+        healthScore: existing.healthScore.score,
+        slaRiskLevel: existing.slaPrediction?.riskLevel || 'LOW',
+        reason: existing.healthScore.reason || 'Previous assessment'
+      })
+      if (analysisHistory.length > 5) analysisHistory.length = 5
+    }
+
+    const record = {
+      _id: analysisData._id || `64f1ai${Date.now().toString(16)}`,
+      id: analysisData.id || `64f1ai${Date.now().toString(16)}`,
+      complaintId: String(analysisData.complaintId),
+      complaintTicketId: analysisData.complaintTicketId || '',
+      rootCauseAnalysis: analysisData.rootCauseAnalysis,
+      slaPrediction: analysisData.slaPrediction,
+      recurringIssue: analysisData.recurringIssue,
+      healthScore: analysisData.healthScore,
+      analysisHistory,
+      analysisVersion: analysisData.analysisVersion || 3,
+      analysisStatus: analysisData.analysisStatus || 'ready',
+      generatedAt: analysisData.generatedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    if (index >= 0) {
+      this.aiAnalyses[index] = record
+    } else {
+      this.aiAnalyses.unshift(record)
+    }
+
+    this._persist()
+    return record
+  }
+
+  getAllAIAnalyses() {
+    return this.aiAnalyses
   }
 
 }
