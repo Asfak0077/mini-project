@@ -1,10 +1,20 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const complaintController = require('../controllers/complaintController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { complaintSchemas } = require('../utils/validationSchemas');
 
 const router = express.Router();
+
+const complaintRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.COMPLAINT_RATE_LIMIT_MAX || 180),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many complaint requests, please try again later.' }
+});
+router.use(complaintRateLimiter);
 
 // ============ STUDENT COMPLAINT ROUTES ============
 router.post('/create', protect, authorize('student'), validate(complaintSchemas.create), complaintController.createComplaint);

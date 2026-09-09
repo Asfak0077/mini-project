@@ -1,10 +1,20 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { authSchemas } = require('../utils/validationSchemas');
 
 const router = express.Router();
+
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many authentication requests, please try again later.' }
+});
+router.use(authRateLimiter);
 
 // ============ PUBLIC ROUTES ============
 
