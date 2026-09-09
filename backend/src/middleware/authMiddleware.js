@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const { inMemoryStore } = require('../utils/inMemoryStore');
+const { getJwtSecret } = require('../utils/jwtSecret');
 
 const protect = async (req, res, next) => {
   let token;
@@ -10,8 +11,7 @@ const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const secret = process.env.SECRET_KEY || process.env.JWT_SECRET || 'dev-secret';
-      const decoded = jwt.verify(token, secret);
+      const decoded = jwt.verify(token, getJwtSecret());
 
       // Support multiple claim names that various clients/providers might use
       const tokenId = decoded.id || decoded.userId || decoded.user_id || decoded.sub || decoded.uid || null

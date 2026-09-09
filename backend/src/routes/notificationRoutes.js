@@ -3,6 +3,7 @@ const mongoose = require('mongoose')
 const Notification = require('../models/Notification')
 const jwt = require('jsonwebtoken')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { getJwtSecret } = require('../utils/jwtSecret')
 
 const router = express.Router()
 
@@ -12,7 +13,7 @@ const getAuthUser = (req) => {
     const token = header.startsWith('Bearer ') ? header.slice(7) : ''
     if (!token) return null
     try {
-        return jwt.verify(token, process.env.SECRET_KEY || 'dev-secret')
+        return jwt.verify(token, getJwtSecret())
     } catch {
         return null
     }

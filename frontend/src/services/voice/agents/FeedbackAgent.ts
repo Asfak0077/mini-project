@@ -123,7 +123,7 @@ export class FeedbackAgent {
   ): Promise<AgentResponse> {
     const raw = userInput.trim()
     const lower = raw.toLowerCase()
-    let draft: FeedbackDraftData = { ...(activeWorkflow.collectedData as FeedbackDraftData) }
+    const draft: FeedbackDraftData = { ...(activeWorkflow.collectedData as FeedbackDraftData) }
 
     // Cancellation
     if (/^(cancel|stop|nevermind|abort|exit|close)$/i.test(lower)) {

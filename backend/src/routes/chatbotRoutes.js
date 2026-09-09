@@ -13,6 +13,7 @@ const { createNotification } = require('../utils/notificationHelper')
 const { emitToRole, emitToUser } = require('../utils/socketService')
 const { logActivity } = require('../utils/loggerService')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { getJwtSecret } = require('../utils/jwtSecret')
 const {
   sendComplaintSubmittedEmails,
   sendFeedbackNotification,
@@ -72,8 +73,7 @@ const extractAuthContext = async (req) => {
     try {
       const token = authHeader.split(' ')[1]
       if (token && token !== 'null' && token !== 'undefined') {
-        const secret = process.env.SECRET_KEY || process.env.JWT_SECRET || 'dev-secret'
-        const decoded = jwt.verify(token, secret)
+        const decoded = jwt.verify(token, getJwtSecret())
         const lookupId = decoded.id || decoded.userId || decoded.sub || decoded.email
         const tokenRole = decoded.role || decoded.userRole || 'student'
 

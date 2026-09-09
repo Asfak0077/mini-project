@@ -270,7 +270,7 @@ export class ComplaintAgent {
       return result
     }
 
-    let desc = text
+    const desc = text
       .replace(/^(please|can you|help me|i want to|i need to|create a complaint about|lodge a complaint for|report an issue with|report a problem with|report a|report an|report)\s+/i, '')
       .trim()
     if (desc && !/^(a complaint|complaint|an issue|issue|problem)$/i.test(desc)) {

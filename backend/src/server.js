@@ -16,7 +16,24 @@ const { initEscalationWorker } = require('./utils/escalationWorker')
 const app = express()
 const port = Number(process.env.PORT || 5001)
 
-app.use(cors())
+const isProduction = process.env.NODE_ENV === 'production'
+const defaultAllowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173']
+const configuredOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
+const allowedOrigins = Array.from(new Set([...(isProduction ? [] : defaultAllowedOrigins), ...configuredOrigins]))
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(null, false)
+  },
+  credentials: true
+}
+
+app.use(cors(corsOptions))
 app.use(
   require('helmet')({
     crossOriginOpenerPolicy: { policy: 'unsafe-none' },
@@ -38,7 +55,13 @@ if (!fs.existsSync(profileUploadsDir)) fs.mkdirSync(profileUploadsDir, { recursi
 
 const allowCrossOriginImages = (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  const requestOrigin = req.headers.origin
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin)
+    res.setHeader('Vary', 'Origin')
+  } else if (!isProduction) {
+    res.setHeader('Access-Control-Allow-Origin', defaultAllowedOrigins[0])
+  }
   next()
 }
 
@@ -119,4 +142,3 @@ if (require.main === module) {
 }
 
 module.exports = app
-

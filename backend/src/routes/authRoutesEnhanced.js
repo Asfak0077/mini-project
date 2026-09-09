@@ -10,6 +10,7 @@ const { sendPasswordResetEmail, sendLoginNotification, sendPasswordChangeNotific
 const { OAuth2Client } = require('google-auth-library')
 const { supabase } = require('../utils/supabaseClient')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { getJwtSecret } = require('../utils/jwtSecret')
 
 const router = express.Router()
 
@@ -25,7 +26,7 @@ const signToken = (payload) => {
     studentId: payload.studentId || undefined,
     teacherId: payload.teacherId || undefined
   }
-  return jwt.sign(tokenPayload, process.env.SECRET_KEY || 'dev-secret', { expiresIn: '1d' })
+  return jwt.sign(tokenPayload, getJwtSecret(), { expiresIn: '1d' })
 }
 
 const getAuthPayload = (req) => {
@@ -33,7 +34,7 @@ const getAuthPayload = (req) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   if (!token) return null
   try {
-    const payload = jwt.verify(token, process.env.SECRET_KEY || 'dev-secret')
+    const payload = jwt.verify(token, getJwtSecret())
     // Normalize common claim names to `id` and `role`
     if (payload && !payload.id) {
       payload.id = payload.userId || payload.user_id || payload.sub || payload.uid || payload._id || payload.user || payload.mongoId || payload.userIdString || payload.userId
