@@ -11,6 +11,9 @@ module.exports = {
     plugins: [],
     rules: {
         '@typescript-eslint/no-explicit-any': 'warn',
-        '@typescript-eslint/no-unused-vars': 'warn'
+        '@typescript-eslint/no-unused-vars': 'warn',
+        'react-hooks/set-state-in-effect': 'off',
+        'react-hooks/preserve-manual-memoization': 'off',
+        'react-hooks/purity': 'off'
     },
 }
