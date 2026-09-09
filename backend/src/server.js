@@ -3,6 +3,7 @@ const express = require('express')
 const path = require('path')
 const cors = require('cors')
 const morgan = require('morgan')
+const rateLimit = require('express-rate-limit')
 const { connectDatabase } = require('./config/db')
 const authRoutes = require('./routes/authRoutesEnhanced')
 const complaintRoutes = require('./routes/complaintRoutesEnhanced')
@@ -44,6 +45,15 @@ app.use(
 app.use(require('express-mongo-sanitize')())
 app.use(express.json({ limit: '1mb' }))
 app.use(morgan('dev'))
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_MAX || 300),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' }
+})
+app.use('/api', apiLimiter)
 
 const fs = require('fs')
 
