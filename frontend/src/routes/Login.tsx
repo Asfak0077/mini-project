@@ -182,10 +182,10 @@ const LoginPage: React.FC = () => {
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.3 }}
-              className="bg-[var(--card)] border border-[var(--border)] rounded-[26px] p-6 sm:p-8 shadow-[var(--shadow-md)] relative backdrop-blur-sm space-y-6"
+              className="bg-[var(--card)] border border-[var(--border)] rounded-[26px] p-6 sm:p-8 shadow-[var(--shadow-md)] relative backdrop-blur-sm flex flex-col gap-5"
             >
               {/* Card Header */}
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1">
                 <h2 className="text-2xl font-[800] text-[var(--text-primary)] tracking-tight">
                   Sign in to your account
                 </h2>
@@ -247,7 +247,7 @@ const LoginPage: React.FC = () => {
               </AnimatePresence>
 
               {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
                 {mode === 'student' ? (
                   <div className="space-y-1.5">
                     <label htmlFor="email" className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -336,11 +336,12 @@ const LoginPage: React.FC = () => {
               </form>
 
               {/* Divider */}
-              <div className="relative flex items-center justify-center">
-                <div className="w-full border-t border-[var(--border)]" />
-                <span className="absolute px-3 bg-[var(--card)] text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <div className="flex items-center gap-3 my-1">
+                <div className="flex-1 border-t border-[var(--border)]" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap px-1">
                   or continue with
                 </span>
+                <div className="flex-1 border-t border-[var(--border)]" />
               </div>
 
               {/* Google OAuth Button */}

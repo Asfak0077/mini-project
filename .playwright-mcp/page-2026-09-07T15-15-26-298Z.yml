@@ -1,0 +1,59 @@
+- generic [ref=f15e2]:
+  - button "Open CampusResolve AI Assistant"
+  - generic [ref=f15e3]:
+    - banner [ref=f15e4]:
+      - link "CR CampusResolve Student Support Portal" [ref=f15e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f15e6]: CR
+        - generic [ref=f15e7]:
+          - generic [ref=f15e8]: CampusResolve
+          - generic [ref=f15e9]: Student Support Portal
+      - generic [ref=f15e10]:
+        - link "About & Guidelines" [ref=f15e11] [cursor=pointer]:
+          - /url: /about
+        - button "Switch to dark mode" [ref=f15e12] [cursor=pointer]
+    - main [ref=f15e15]:
+      - generic [ref=f15e16]:
+        - generic [ref=f15e17]:
+          - generic [ref=f15e18]: Student Support Portal
+          - generic [ref=f15e22]:
+            - heading "CampusResolve" [level=1] [ref=f15e23]
+            - paragraph [ref=f15e24]: Report a Problem. Get It Resolved.
+          - paragraph [ref=f15e25]: CampusResolve helps students report academic, hostel, and campus issues in one place. Track your complaint and get updates until the issue is resolved.
+          - generic [ref=f15e26]:
+            - generic [ref=f15e31]:
+              - text: Submit Complaints Easily
+              - generic [ref=f15e32]: — Report your problem quickly
+            - generic [ref=f15e37]:
+              - text: Track Your Complaint
+              - generic [ref=f15e38]: — Check updates and progress
+            - generic [ref=f15e43]:
+              - text: Get Help from AI
+              - generic [ref=f15e44]: — Create complaints with AI assistance
+            - generic [ref=f15e49]:
+              - text: Safe & Secure
+              - generic [ref=f15e50]: — Your information is protected
+        - generic [ref=f15e52]:
+          - generic [ref=f15e53]:
+            - heading "Sign in to your account" [level=2] [ref=f15e54]
+            - paragraph [ref=f15e55]: Select your role to access your designated portal.
+          - generic [ref=f15e56]:
+            - button "Student" [ref=f15e57] [cursor=pointer]
+            - button "Faculty / Staff" [ref=f15e62] [cursor=pointer]
+          - generic [ref=f15e67]:
+            - generic [ref=f15e68]:
+              - generic [ref=f15e69]: Student Email *
+              - textbox "Student Email *" [ref=f15e71]:
+                - /placeholder: you@university.edu
+            - generic [ref=f15e72]:
+              - generic [ref=f15e73]:
+                - generic [ref=f15e74]: Password *
+                - link "Forgot password?" [ref=f15e75] [cursor=pointer]:
+                  - /url: /forgot-password
+              - generic [ref=f15e76]:
+                - textbox "Password *" [ref=f15e77]:
+                  - /placeholder: ••••••••
+                - button "Show password" [ref=f15e78] [cursor=pointer]
+            - button "Sign in as Student" [ref=f15e82] [cursor=pointer]
+          - generic [ref=f15e87]: or continue with
+          - button "Continue with Google" [ref=f15e90] [cursor=pointer]

@@ -64,6 +64,10 @@ const App = () => {
           return
         }
 
+        // Only navigate to dashboard on explicit sign-in, not on page load (INITIAL_SESSION)
+        // This allows authenticated users to visit public pages like /about and /login without redirect
+        const isExplicitSignIn = event === 'SIGNED_IN'
+
         try {
           // Verify authenticated user's email against backend user/student database
           const verification = await verifyGoogleUserSession(session)
@@ -83,10 +87,12 @@ const App = () => {
             user: verification.user
           })
 
-          // Route to role-specific dashboard
-          if (verification.role === 'admin') navigate('/admin')
-          else if (verification.role === 'teacher') navigate('/teacher')
-          else navigate('/student')
+          // Route to role-specific dashboard only on explicit sign-in, not on page load
+          if (isExplicitSignIn) {
+            if (verification.role === 'admin') navigate('/admin')
+            else if (verification.role === 'teacher') navigate('/teacher')
+            else navigate('/student')
+          }
         } catch (err: any) {
           console.error('Google authorization error:', err)
           await supabase.auth.signOut().catch(() => undefined)

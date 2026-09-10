@@ -1,0 +1,82 @@
+- generic [ref=f17e2]:
+  - button "Open CampusResolve AI Assistant"
+  - generic [ref=f17e3]:
+    - banner [ref=f17e4]:
+      - link "CR CampusResolve" [ref=f17e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f17e6]: CR
+        - generic [ref=f17e7]: CampusResolve
+      - generic [ref=f17e8]:
+        - button "Switch to dark mode" [ref=f17e9] [cursor=pointer]
+        - link [ref=f17e12] [cursor=pointer]:
+          - /url: /login
+          - button "Portal Login" [ref=f17e13]
+    - main [ref=f17e15]:
+      - generic [ref=f17e16]:
+        - generic [ref=f17e17]: Institutional Grievance Platform
+        - heading "Transparent Redressal for the Modern Campus" [level=1] [ref=f17e21]
+        - paragraph [ref=f17e22]: Empowering students, faculty, and administration with a frictionless digital workflow for campus resolution, feedback, and accountability.
+      - generic [ref=f17e23]:
+        - generic [ref=f17e24]:
+          - generic [ref=f17e25]: AVERAGE RESOLUTION
+          - generic [ref=f17e26]: 24 hrs
+          - generic [ref=f17e27]: Industry-leading SLA turnaround
+        - generic [ref=f17e28]:
+          - generic [ref=f17e29]: SATISFACTION RATING
+          - generic [ref=f17e30]: 4.9 / 5
+          - generic [ref=f17e31]: Over 2,500+ verified evaluations
+        - generic [ref=f17e32]:
+          - generic [ref=f17e33]: DEPARTMENT REACH
+          - generic [ref=f17e34]: 100%
+          - generic [ref=f17e35]: Unified campus-wide coverage
+        - generic [ref=f17e36]:
+          - generic [ref=f17e37]: SECURITY PROTOCOL
+          - generic [ref=f17e38]: Grade A
+          - generic [ref=f17e39]: Encrypted audit ledger
+      - generic [ref=f17e40]:
+        - generic [ref=f17e41]:
+          - heading "System Capabilities" [level=2] [ref=f17e42]
+          - paragraph [ref=f17e43]: Built from the ground up for speed, reliability, and precision.
+        - generic [ref=f17e44]:
+          - generic [ref=f17e45]:
+            - heading "Real-Time Resolution" [level=3] [ref=f17e49]
+            - paragraph [ref=f17e50]: Streamlined complaint submission with live tracking, automated assignment, and stage-by-stage lifecycle updates.
+          - generic [ref=f17e51]:
+            - heading "Verified Redressal" [level=3] [ref=f17e56]
+            - paragraph [ref=f17e57]: Role-based access for students, departmental faculty, and administrators with authenticated SHA-256 validation.
+          - generic [ref=f17e58]:
+            - heading "Insightful Analytics" [level=3] [ref=f17e62]
+            - paragraph [ref=f17e63]: Real-time service quality metrics, SLA adherence benchmarks, and satisfaction distributions across departments.
+          - generic [ref=f17e64]:
+            - heading "Confidential & Secure" [level=3] [ref=f17e69]
+            - paragraph [ref=f17e70]: Protected data layers ensuring student privacy, immutable audit records, and encrypted credential handling.
+          - generic [ref=f17e71]:
+            - heading "Responsive Workspace" [level=3] [ref=f17e75]
+            - paragraph [ref=f17e76]: Seamlessly optimized for mobile, tablet, and high-resolution desktop interfaces with light & dark theme support.
+          - generic [ref=f17e77]:
+            - heading "Real-Time Sync" [level=3] [ref=f17e82]
+            - paragraph [ref=f17e83]: Instant WebSocket and event updates on ticket assignments, status progressions, and faculty remarks.
+      - generic [ref=f17e84]:
+        - generic [ref=f17e85]:
+          - heading "Guidelines for Redressal" [level=2] [ref=f17e86]
+          - paragraph [ref=f17e87]: Follow these standard protocols for optimal response times.
+        - generic [ref=f17e88]:
+          - generic [ref=f17e89]:
+            - text: "01"
+            - heading "Be Specific & Clear" [level=4] [ref=f17e90]
+            - paragraph [ref=f17e91]: Provide exact dates, locations, classroom/lab numbers, and affected individuals to expedite investigation.
+          - generic [ref=f17e92]:
+            - text: "02"
+            - heading "Select Accurate Category" [level=4] [ref=f17e93]
+            - paragraph [ref=f17e94]: Choose Academic, Infrastructure, Transport, or Hostel to route directly to authorized departmental faculty.
+          - generic [ref=f17e95]:
+            - text: "03"
+            - heading "Monitor & Evaluate" [level=4] [ref=f17e96]
+            - paragraph [ref=f17e97]: Track stage progress in your Ticket History and provide 5-star quality feedback once resolved.
+      - generic [ref=f17e98]:
+        - generic [ref=f17e99]:
+          - heading "Ready to Submit or Track a Grievance?" [level=3] [ref=f17e100]
+          - paragraph [ref=f17e101]: Sign in with your institutional credentials to access your personal dashboard.
+        - link [ref=f17e102] [cursor=pointer]:
+          - /url: /login
+          - button "Launch Portal" [ref=f17e103]

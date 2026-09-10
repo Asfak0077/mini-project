@@ -127,7 +127,7 @@ export class TextToSpeechService {
       // Remove checkmarks and special symbols
       .replace(/[✓✗✔✘☐☑]/g, '')
       // Remove emoji-like symbols (keep text emojis for context)
-      .replace(/[🏛️🔒⭐❌]/g, '')
+      .replace(/(?:🏛️|🔒|⭐|❌)/gu, '')
       // Handle complaint IDs: CR-001 → C R 001
       .replace(/\b(CR|CMP)-(\d+)\b/gi, (_, prefix, num) => {
         return prefix.split('').join(' ') + ' ' + num

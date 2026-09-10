@@ -24,10 +24,10 @@ class ErrorBoundary extends Component<Props, State> {
     public render() {
         if (this.state.hasError) {
             return (
-                <div className="flex h-screen w-full items-center justify-center bg-[var(--pk-bg-dark)] p-4">
+                <div className="flex h-screen w-full items-center justify-center bg-[var(--background)] p-4">
                     <div className="max-w-md text-center">
-                        <h1 className="text-2xl font-bold text-[var(--pk-text-primary)]">Something went wrong.</h1>
-                        <p className="mt-2 text-[var(--pk-text-secondary)]">
+                        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Something went wrong.</h1>
+                        <p className="mt-2 text-[var(--text-secondary)]">
                             We encountered an unexpected error. Please try refreshing the page.
                         </p>
                         <button

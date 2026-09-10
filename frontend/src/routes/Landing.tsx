@@ -22,23 +22,33 @@ const LandingPage = () => {
       <AmbientBackground />
 
       {/* Top Header / Actions Bar */}
-      <header className="relative z-50 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex justify-between items-center">
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md ring-1 ring-white/20 bg-gradient-to-br from-blue-600 to-indigo-600">
-            CR
-          </div>
-          <span className="text-lg font-black text-[var(--text-primary)] tracking-tighter">
-            CampusResolve
-          </span>
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <Link to="/login">
-            <Button size="sm" icon={<LogIn className="w-4 h-4" />}>
-              Portal Login
-            </Button>
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md ring-1 ring-white/20 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-600 group-hover:scale-105 transition-transform">
+              CR
+            </div>
+            <span className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+              CampusResolve
+            </span>
           </Link>
+
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-7 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+            <a href="#features" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Features</a>
+            <a href="#workflow" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Workflow</a>
+            <a href="#statistics" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Metrics</a>
+            <Link to="/about" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">About</Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link to={isAuthenticated ? (role === 'admin' ? '/admin' : role === 'teacher' ? '/teacher' : '/student') : '/login'}>
+              <Button size="sm" icon={isAuthenticated ? <ArrowRight className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}>
+                {isAuthenticated ? 'Dashboard' : 'Portal Login'}
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 

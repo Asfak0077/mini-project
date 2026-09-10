@@ -208,7 +208,7 @@ export const ChatAssistant: React.FC = () => {
   }, [])
 
   // Ref to always access latest handleSend function without stale closure
-  const handleSendRef = useRef<(text: string, actionType?: string | null, isFromVoice?: boolean) => Promise<void>>()
+  const handleSendRef = useRef<((text: string, actionType?: string | null, isFromVoice?: boolean) => Promise<void>) | undefined>(undefined)
   useEffect(() => {
     handleSendRef.current = handleSend
   })

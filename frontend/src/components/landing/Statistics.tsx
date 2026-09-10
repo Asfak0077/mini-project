@@ -1,7 +1,15 @@
+import React from 'react'
 import { motion } from 'framer-motion'
 import CountUp from 'react-countup'
 import { Users, FileText, CheckCircle2, Building2, GraduationCap, Clock } from 'lucide-react'
 import { Card } from '../ui/Card'
+
+// Safely resolve CountUp component across ESM/CJS interop
+const RawCountUp = (CountUp as any)?.default || CountUp
+const CountUpComponent: React.ComponentType<any> | null =
+  typeof RawCountUp === 'function' || (typeof RawCountUp === 'object' && RawCountUp !== null && '$$typeof' in RawCountUp)
+    ? RawCountUp
+    : null
 
 const STATS_DATA = [
   { label: 'Total Students', value: 2500, suffix: '+', icon: Users, color: 'text-blue-600 dark:text-blue-400' },
@@ -37,7 +45,11 @@ const Statistics = () => {
                       stat.textValue
                     ) : (
                       <>
-                        <CountUp end={stat.value || 0} duration={2.5} enableScrollSpy scrollSpyOnce />
+                        {CountUpComponent ? (
+                          <CountUpComponent end={stat.value || 0} duration={2.5} enableScrollSpy scrollSpyOnce />
+                        ) : (
+                          <span>{stat.value || 0}</span>
+                        )}
                         <span>{stat.suffix}</span>
                       </>
                     )}

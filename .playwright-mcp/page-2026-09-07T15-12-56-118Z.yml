@@ -1,0 +1,162 @@
+- generic [ref=f11e2]:
+  - button "Open CampusResolve AI Assistant"
+  - generic [ref=f11e3]:
+    - complementary "Sidebar navigation" [ref=f11e4]:
+      - link "CR" [ref=f11e6] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=f11e9]:
+        - link "Overview" [ref=f11e11] [cursor=pointer]:
+          - /url: /admin
+        - link "AI Recommendations" [ref=f11e18] [cursor=pointer]:
+          - /url: /admin/recommendations
+        - link "Faculty Directory" [ref=f11e23] [cursor=pointer]:
+          - /url: /admin/teachers
+        - link "Feedback Inbox" [ref=f11e28] [cursor=pointer]:
+          - /url: /admin/feedback
+        - link "Analytics & Trends" [ref=f11e32] [cursor=pointer]:
+          - /url: /admin/analytics
+        - link "Admin Profile" [ref=f11e36] [cursor=pointer]:
+          - /url: /student/profile
+      - generic [ref=f11e42]:
+        - link [ref=f11e44] [cursor=pointer]:
+          - /url: /student/profile
+          - img "Admin Officer" [ref=f11e47]
+        - button "Log Out" [ref=f11e50] [cursor=pointer]
+    - generic [ref=f11e54]:
+      - banner [ref=f11e56]:
+        - generic [ref=f11e57]:
+          - button "Toggle sidebar expansion" [ref=f11e58] [cursor=pointer]
+          - navigation "Breadcrumb" [ref=f11e61]:
+            - generic [ref=f11e62]: Account
+            - generic [ref=f11e65]: Settings
+        - button "Search complaints, actions... ⌘K" [ref=f11e68] [cursor=pointer]:
+          - generic [ref=f11e69]: Search complaints, actions...
+          - generic [ref=f11e74]: ⌘K
+        - generic [ref=f11e75]:
+          - button "Switch to dark mode" [ref=f11e76] [cursor=pointer]
+          - button "Notifications" [ref=f11e80] [cursor=pointer]
+          - link "Admin Admin Admin Officer" [ref=f11e85] [cursor=pointer]:
+            - /url: /student/profile
+            - generic [ref=f11e86]:
+              - generic [ref=f11e87]: Admin
+              - generic [ref=f11e88]: Admin
+            - img "Admin Officer" [ref=f11e90]
+      - main [ref=f11e91]:
+        - generic [ref=f11e93]:
+          - generic [ref=f11e94]:
+            - generic [ref=f11e95]:
+              - heading "Account Profile" [level=1] [ref=f11e96]
+              - paragraph [ref=f11e97]: Manage your verified identity, credentials, security protocols, and preferences.
+            - button "Edit Profile" [ref=f11e99] [cursor=pointer]
+          - generic [ref=f11e105]:
+            - generic [ref=f11e106]:
+              - generic [ref=f11e107]:
+                - generic [ref=f11e108]:
+                  - img "Admin Officer" [ref=f11e109]
+                  - button "Change" [ref=f11e110] [cursor=pointer]
+                - generic "Verified & Active Node" [ref=f11e115]
+              - generic [ref=f11e118]:
+                - generic [ref=f11e119]:
+                  - generic [ref=f11e120]: Administrator
+                  - generic [ref=f11e121]: Verified Identity
+                - heading "Admin Officer" [level=2] [ref=f11e125]
+                - paragraph [ref=f11e126]:
+                  - generic [ref=f11e127]: 6A72EA4A
+                  - generic [ref=f11e128]: •
+                  - generic [ref=f11e129]: Administration
+                - paragraph [ref=f11e130]: "\"Admin Officer is a dedicated admin at CampusResolve, committed to academic excellence and continuous improvement in the Administration department.\""
+            - generic [ref=f11e131]:
+              - generic [ref=f11e132]:
+                - button "Digital ID QR" [ref=f11e133] [cursor=pointer]
+                - button "Security" [ref=f11e141] [cursor=pointer]
+              - generic [ref=f11e146]: Member since Not available
+          - generic [ref=f11e147]:
+            - generic [ref=f11e148]:
+              - generic [ref=f11e149]:
+                - generic [ref=f11e150]: Profile Health
+                - generic [ref=f11e151]: 85% Complete
+              - generic [ref=f11e152]: All verified attributes active
+            - link "Total Complaints 00 Track resolution history →" [ref=f11e155] [cursor=pointer]:
+              - /url: /student/history
+              - generic [ref=f11e156]: Total Complaints
+              - generic [ref=f11e161]:
+                - generic [ref=f11e162]: "00"
+                - text: Track resolution history →
+            - generic [ref=f11e163]:
+              - generic [ref=f11e164]: Security Protocol
+              - generic [ref=f11e169]:
+                - generic [ref=f11e170]: OAuth 2.0 / JWT
+                - text: Grade A Encryption
+            - link "Student Feedback Submit Review Rate department staff →" [ref=f11e171] [cursor=pointer]:
+              - /url: /student/feedback
+              - generic [ref=f11e172]: Student Feedback
+              - generic [ref=f11e176]:
+                - generic [ref=f11e177]: Submit Review
+                - text: Rate department staff →
+          - generic [ref=f11e178]:
+            - generic [ref=f11e179]:
+              - generic [ref=f11e180]:
+                - generic [ref=f11e186]:
+                  - heading "Academic & Personal Identity" [level=3] [ref=f11e187]
+                  - paragraph [ref=f11e188]: Core student cohort records
+                - button "Edit Personal Information" [ref=f11e189] [cursor=pointer]
+              - generic [ref=f11e192]:
+                - generic [ref=f11e193]:
+                  - generic [ref=f11e194]: Full Legal Name
+                  - paragraph [ref=f11e195]: Admin Officer
+                - generic [ref=f11e196]:
+                  - generic [ref=f11e197]: Student Roll ID
+                  - paragraph [ref=f11e198]: 6A72EA4AC9
+                - generic [ref=f11e199]:
+                  - generic [ref=f11e200]: Department
+                  - paragraph [ref=f11e201]: Administration
+                - generic [ref=f11e202]:
+                  - generic [ref=f11e203]: Semester / Year
+                  - paragraph [ref=f11e204]: Not set
+                - generic [ref=f11e205]:
+                  - generic [ref=f11e206]: Profile Statement / Bio
+                  - paragraph [ref=f11e207]: Admin Officer is a dedicated admin at CampusResolve, committed to academic excellence and continuous improvement in the Administration department.
+            - generic [ref=f11e208]:
+              - generic [ref=f11e209]:
+                - generic [ref=f11e215]:
+                  - heading "Contact & Security Protocol" [level=3] [ref=f11e216]
+                  - paragraph [ref=f11e217]: Communication channels & verification
+                - button "Edit Contact Information" [ref=f11e218] [cursor=pointer]
+              - generic [ref=f11e221]:
+                - generic [ref=f11e222]:
+                  - generic [ref=f11e228]:
+                    - generic [ref=f11e229]: Email Address
+                    - generic [ref=f11e230]: admin@campusresolve.edu
+                  - generic [ref=f11e231]: Verified
+                - generic [ref=f11e232]:
+                  - generic [ref=f11e237]:
+                    - generic [ref=f11e238]: Phone Number
+                    - generic [ref=f11e239]: No phone on file
+                  - generic [ref=f11e240]: SMS Active
+                - generic [ref=f11e241]:
+                  - generic [ref=f11e247]:
+                    - generic [ref=f11e248]: Account Password
+                    - text: Protected & Configured
+                  - button "Change" [ref=f11e249] [cursor=pointer]
+          - generic [ref=f11e250]:
+            - heading "Quick Actions & Services" [level=3] [ref=f11e251]
+            - generic [ref=f11e252]:
+              - link [ref=f11e253] [cursor=pointer]:
+                - /url: /student/history
+                - generic [ref=f11e261]:
+                  - heading "Complaint History" [level=4] [ref=f11e262]
+                  - paragraph [ref=f11e263]: Track submissions
+              - link [ref=f11e267] [cursor=pointer]:
+                - /url: /student
+                - generic [ref=f11e274]:
+                  - heading "Submit Complaint" [level=4] [ref=f11e275]
+                  - paragraph [ref=f11e276]: Lodge a grievance
+              - link [ref=f11e280] [cursor=pointer]:
+                - /url: /student/feedback
+                - generic [ref=f11e286]:
+                  - heading "Give Feedback" [level=4] [ref=f11e287]
+                  - paragraph [ref=f11e288]: Rate resolutions
+              - button [ref=f11e292] [cursor=pointer]:
+                - generic [ref=f11e301]:
+                  - heading "Verified QR" [level=4] [ref=f11e302]
+                  - paragraph [ref=f11e303]: Digital identity

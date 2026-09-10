@@ -239,7 +239,7 @@ const ProfileSettings = () => {
   const userInitials = getInitials(user?.name || user?.email || 'CR')
   const formattedJoinDate = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
-    : 'Aug 2026'
+    : 'Not available'
 
   // Reset avatar image error if user profile updates
   useEffect(() => {
@@ -384,10 +384,10 @@ const ProfileSettings = () => {
 
               <p className="text-[13px] text-[var(--text-secondary)] font-semibold flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-[var(--text-primary)] font-bold">
-                  {user?.studentId || user?.teacherId || user?.id?.slice(0, 8).toUpperCase() || '23VEC371'}
+                  {user?.studentId || user?.teacherId || user?.id?.slice(0, 8).toUpperCase() || 'N/A'}
                 </span>
                 <span className="text-[var(--text-muted)]">•</span>
-                <span>{user?.department || 'Computer Science & Engineering'}</span>
+                <span>{user?.department || 'Not set'}</span>
               </p>
 
               {user?.bio && (
@@ -545,7 +545,7 @@ const ProfileSettings = () => {
                 Full Legal Name
               </span>
               <p className="text-[13.5px] font-bold text-[var(--text-primary)] truncate">
-                {user?.name || 'Asfak Rahman'}
+                {user?.name || 'Campus User'}
               </p>
             </div>
 
@@ -554,7 +554,7 @@ const ProfileSettings = () => {
                 {role === 'teacher' ? 'Faculty ID' : 'Student Roll ID'}
               </span>
               <p className="text-[13.5px] font-bold text-[var(--text-primary)] font-mono truncate">
-                {user?.studentId || user?.teacherId || user?.id?.slice(0, 10).toUpperCase() || '23VEC371'}
+                {user?.studentId || user?.teacherId || user?.id?.slice(0, 10).toUpperCase() || 'N/A'}
               </p>
             </div>
 
@@ -563,7 +563,7 @@ const ProfileSettings = () => {
                 Department
               </span>
               <p className="text-[13.5px] font-bold text-[var(--text-primary)] truncate">
-                {user?.department || 'Computer Science & Engineering'}
+                {user?.department || 'Not set'}
               </p>
             </div>
 
@@ -572,7 +572,7 @@ const ProfileSettings = () => {
                 {role === 'teacher' ? 'Designation' : 'Semester / Year'}
               </span>
               <p className="text-[13.5px] font-bold text-[var(--text-primary)] truncate">
-                {role === 'teacher' ? (user?.designation || 'Professor') : (user?.semesterYear || 'Semester 7 / Final Year')}
+                {role === 'teacher' ? (user?.designation || 'Faculty') : (user?.semesterYear || 'Not set')}
               </p>
             </div>
 
@@ -639,7 +639,7 @@ const ProfileSettings = () => {
                 </div>
                 <div className="min-w-0">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">Phone Number</span>
-                  <span className="text-[13px] font-bold text-[var(--text-primary)] truncate block">{user?.phone || '+91 6385750815'}</span>
+                  <span className="text-[13px] font-bold text-[var(--text-primary)] truncate block">{user?.phone || 'No phone on file'}</span>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">SMS Active</span>
@@ -1025,7 +1025,7 @@ const ProfileSettings = () => {
         onClose={() => setShowQrModal(false)}
         user={{
           name: user?.name || 'Student',
-          studentId: user?.studentId || user?.teacherId || '23VEC371',
+          studentId: user?.studentId || user?.teacherId || user?.id || 'N/A',
           department: user?.department || 'CSE',
           role: role || 'student',
           profilePicture: user?.profilePicture || user?.profileImage

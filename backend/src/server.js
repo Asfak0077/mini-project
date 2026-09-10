@@ -100,14 +100,26 @@ const start = async () => {
   server.listen(port, () => {
     console.log(`Backend running on http://localhost:${port}`)
     console.log(`Socket.io ready for real-time connections`)
-  }).on('error', (err) => {
+  })
+
+  server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       console.error(`❌ Port ${port} is already in use. Please close the process using it or choose a different port.`)
-      process.exit(1)
+      // Do NOT process.exit here with non-zero — let the parent process (or --watch) decide.
+      // Exit cleanly so the restart loop in --watch can attempt to rebind later.
+      process.exit(0)
     } else {
       console.error('❌ Failed to start server:', err)
       process.exit(1)
     }
+  })
+
+  // Guard against unhandled 'error' events on the server (e.g. when the
+  // listener is removed between ticks). Without this, an EADDRINUSE emitted
+  // after listen() has already wired its own handler can still bubble up as
+  // an uncaught exception and crash the entire process tree.
+  server.on('clientError', (_err, socket) => {
+    if (socket.writable) socket.destroy()
   })
 }
 

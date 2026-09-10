@@ -407,7 +407,7 @@ const StudentDashboard: React.FC = () => {
                 {user?.email || 'student@campusresolve.edu'}
               </p>
               <span className="text-[10.5px] font-bold text-[var(--accent)] mt-0.5">
-                {user?.department || 'CSE'} · {user?.studentId || '23VEC371'}
+                {user?.department || 'Not set'} · {user?.studentId || 'N/A'}
               </span>
             </div>
 

@@ -83,38 +83,38 @@ const Hero = () => {
           {/* Ambient Glow */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <Card hoverEffect={true} className="relative z-10">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800/80 mb-6">
+          <Card hoverEffect={true} className="relative z-10 p-6 sm:p-8 shadow-xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800/80 mb-6 gap-2">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                 </span>
-                <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 whitespace-nowrap">
                   Live Resolution Flow
                 </span>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20 shrink-0">
                 Support Portal
               </span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {[
                 { label: 'Submit Complaints Easily', detail: 'Report your problem quickly with the required details', color: 'bg-blue-500', icon: '1' },
                 { label: 'Track Your Complaint', detail: 'Check the latest status and follow the progress of your complaint', color: 'bg-cyan-500', icon: '2' },
                 { label: 'Get Help from AI', detail: 'Use the AI Assistant to help create and manage your complaints', color: 'bg-indigo-500', icon: '3' },
                 { label: 'Safe & Secure', detail: 'Your personal information and complaint details are protected', color: 'bg-emerald-500', icon: '4' }
               ].map((step) => (
-                <div key={step.label} className="flex items-start gap-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-blue-500/30 transition-all">
-                  <div className={`w-9 h-9 rounded-xl ${step.color} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md`}>
+                <div key={step.label} className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-blue-500/30 hover:shadow-sm transition-all">
+                  <div className={`w-8 h-8 rounded-xl ${step.color} flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm`}>
                     {step.icon}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                       {step.label}
                     </h4>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                       {step.detail}
                     </p>
                   </div>
@@ -122,11 +122,11 @@ const Hero = () => {
               ))}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-blue-500" /> Target Resolution Time
+            <div className="mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 gap-2">
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <Clock className="w-4 h-4 text-blue-500 shrink-0" /> Target Resolution Time
               </span>
-              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">
+              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-extrabold shrink-0 whitespace-nowrap bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                 &lt; 24 Hours
               </span>
             </div>

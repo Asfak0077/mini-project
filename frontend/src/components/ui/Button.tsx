@@ -36,20 +36,19 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      'bg-[#111827] hover:bg-[#2563EB] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white shadow-sm hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]',
+      'bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white !text-white shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 border border-blue-400/20 active:scale-[0.98]',
     secondary:
-      'bg-white dark:bg-[#162030] hover:bg-slate-50 dark:hover:bg-[#1E2C42] text-[var(--text-primary)] border border-[var(--border)] shadow-[var(--shadow-sm)]',
+      'bg-white dark:bg-slate-800/90 hover:bg-slate-50 dark:hover:bg-slate-700/90 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-sm active:scale-[0.98]',
     outline:
-
-      'bg-transparent text-[var(--text-primary)] border border-[var(--border-strong)] hover:bg-[var(--surface-hover)]',
+      'bg-transparent text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-100/70 dark:hover:bg-slate-800/70',
     ghost:
-      'bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]',
+      'bg-transparent text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60',
     danger:
-      'bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-red-500/25',
+      'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white !text-white shadow-md shadow-rose-500/25',
     success:
-      'bg-[#4D7C5F] hover:bg-[#3d634c] text-white shadow-sm hover:shadow-emerald-500/20',
+      'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white !text-white shadow-md shadow-emerald-500/20',
     warning:
-      'bg-amber-500 hover:bg-amber-600 text-white shadow-sm',
+      'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white !text-white shadow-md shadow-amber-500/20',
   }
 
   const sizes = {
@@ -65,9 +64,8 @@ export const Button: React.FC<ButtonProps> = ({
       type={type}
       disabled={disabled || isLoading}
       onClick={onClick}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${
-        fullWidth ? 'w-full' : ''
-      } ${className}`}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''
+        } ${className}`}
       {...props}
     >
       {isLoading ? (
